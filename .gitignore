@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+webcurahoi/node_modules/
+
+# Next.js build output
+.next/
+webcurahoi/.next/
+out/
+webcurahoi/out/
+
+# Production
+build/
+webcurahoi/build/
+
+# Temp & office lock files
+~$*
+*.tmp
+extracted_media/
+extracted_docx.txt
+
+# Environment variables
+.env*
+webcurahoi/.env*
+!.env.example
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

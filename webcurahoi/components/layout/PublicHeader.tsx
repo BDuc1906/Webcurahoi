@@ -133,7 +133,7 @@ export default function PublicHeader() {
               </div>
             </li>
 
-            {/* Mục 2: Tin Tức - Sự Kiện */}
+            {/* Mục 2: Tin Tức - Sự Kiện (Mảng II theo quy chuẩn Word) */}
             <li className="relative group">
               <Link
                 href="/tin-tuc"
@@ -141,41 +141,56 @@ export default function PublicHeader() {
               >
                 Tin Tức - Sự Kiện <ChevronDown className="w-3 h-3 opacity-70" />
               </Link>
-              <div className="absolute left-0 top-full hidden group-hover:block w-72 bg-white text-slate-800 shadow-xl border border-slate-200 z-50 rounded-xs divide-y divide-slate-100 overflow-hidden font-gov normal-case">
+              <div className="absolute left-0 top-full hidden group-hover:block w-[360px] bg-white text-slate-800 shadow-xl border border-slate-200 z-50 rounded-xs divide-y divide-slate-100 overflow-hidden font-gov normal-case">
                 <Link
-                  href="/tin-tuc?category=Sự kiện Trung ương Hội"
-                  className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
+                  href="/tin-tuc/chinh-sach-phap-luat"
+                  className="p-3 flex items-start justify-between text-xs hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
                 >
-                  <span>Sự kiện lớn Trung ương Hội</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold block text-slate-800 group-hover/item:text-[#991b1b]">1. Chính sách, luật pháp sức khỏe nhân dân</span>
+                    <span className="text-[11px] text-slate-500 block leading-tight">Chính sách, chiến lược, luật pháp bảo vệ, chăm sóc sức khỏe</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                 </Link>
+
                 <Link
-                  href="/tin-tuc?category=Thời sự 24/7"
-                  className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
+                  href="/tin-tuc/su-kien-trung-uong"
+                  className="p-3 flex items-start justify-between text-xs hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
                 >
-                  <span>Thời sự Y tế 24/7</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold block text-slate-800 group-hover/item:text-[#991b1b]">2. Các sự kiện lớn của Hội</span>
+                    <span className="text-[11px] text-slate-500 block leading-tight">Đại hội, Hội nghị BCH, Ban Thường vụ, Tọa đàm khoa học</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                 </Link>
+
                 <Link
-                  href="/tin-tuc?category=Viện - Trường Đào tạo"
-                  className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
+                  href="/tin-tuc/hoat-dong-don-vi"
+                  className="p-3 flex items-start justify-between text-xs hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
                 >
-                  <span>Viện - Trường & Sức khỏe Học đường</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold block text-slate-800 group-hover/item:text-[#991b1b]">3. Hoạt động đơn vị thuộc Hội</span>
+                    <span className="text-[11px] text-slate-500 block leading-tight">Thành lập mới, Chi hội 63 tỉnh thành, Viện - Trung tâm, Học đường</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                 </Link>
+
                 <Link
-                  href="/tin-tuc?category=Chính sách %26 Pháp luật"
-                  className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
+                  href="/tin-tuc/hoat-dong-khac"
+                  className="p-3 flex items-start justify-between text-xs hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
                 >
-                  <span>Chính sách & Pháp luật</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold block text-slate-800 group-hover/item:text-[#991b1b]">4. Các hoạt động liên quan khác</span>
+                    <span className="text-[11px] text-slate-500 block leading-tight">Thời sự y tế 24/7, Phong trào thiện nguyện, Thể thao - Văn nghệ</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                 </Link>
+
                 <Link
-                  href="/tin-tuc?category=Thiện nguyện vì sức khỏe"
-                  className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
+                  href="/tin-tuc"
+                  className="p-2.5 text-center block text-[11px] font-bold text-[#991b1b] bg-amber-50/60 hover:bg-amber-100/80 transition-colors"
                 >
-                  <span>Hoạt động Đơn vị & Thiện nguyện</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                  Xem toàn bộ cơ sở dữ liệu tin tức (100 bài viết) →
                 </Link>
               </div>
             </li>
@@ -360,24 +375,21 @@ export default function PublicHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between py-2 px-2 text-white font-bold hover:bg-slate-800 rounded-xs"
             >
-              <span>TIN TỨC - THỜI SỰ 24/7</span>
+              <span>TIN TỨC - SỰ KIỆN (MẢNG II)</span>
               <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
             </Link>
             <div className="pl-4 space-y-1 text-slate-300 text-[11px] pt-1">
-              <Link href="/tin-tuc?category=Sự kiện Trung ương Hội" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
-                • Sự kiện lớn Trung ương Hội
+              <Link href="/tin-tuc/chinh-sach-phap-luat" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
+                • 1. Chính sách, pháp luật sức khỏe nhân dân
               </Link>
-              <Link href="/tin-tuc?category=Thời sự 24/7" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
-                • Thời sự Y tế 24/7
+              <Link href="/tin-tuc/su-kien-trung-uong" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
+                • 2. Các sự kiện lớn của Hội (Đại hội, BCH, Hội thảo...)
               </Link>
-              <Link href="/tin-tuc?category=Viện - Trường Đào tạo" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
-                • Viện - Trường & Học đường
+              <Link href="/tin-tuc/hoat-dong-don-vi" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
+                • 3. Hoạt động các đơn vị thuộc Hội (Chi hội, Viện - Trường)
               </Link>
-              <Link href="/tin-tuc?category=Chính sách %26 Pháp luật" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
-                • Chính sách & Pháp luật
-              </Link>
-              <Link href="/tin-tuc?category=Thiện nguyện vì sức khỏe" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
-                • Hoạt động Đơn vị & Thiện nguyện
+              <Link href="/tin-tuc/hoat-dong-khac" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
+                • 4. Hoạt động liên quan khác (Thời sự 24/7, Thiện nguyện)
               </Link>
             </div>
           </div>

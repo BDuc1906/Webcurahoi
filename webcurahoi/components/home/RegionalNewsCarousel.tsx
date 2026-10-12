@@ -148,7 +148,10 @@ export default function RegionalNewsCarousel() {
             >
               <div className="space-y-2.5">
                 {/* Ảnh bài viết */}
-                <div className="aspect-[16/10] relative overflow-hidden bg-slate-900">
+                <Link
+                  href={`/tin-tuc/${item.id}`}
+                  className="aspect-[16/10] relative overflow-hidden bg-slate-900 block cursor-pointer"
+                >
                   <img
                     src={item.image}
                     alt={item.title}
@@ -158,7 +161,7 @@ export default function RegionalNewsCarousel() {
                   <span className="absolute top-2.5 left-2.5 bg-[#991b1b] text-white text-[10px] font-bold px-2 py-0.5 rounded-xs shadow-sm uppercase font-gov flex items-center gap-1">
                     <MapPin className="w-2.5 h-2.5" /> {province}
                   </span>
-                </div>
+                </Link>
 
                 {/* Nội dung tóm tắt */}
                 <div className="p-4 space-y-2">
