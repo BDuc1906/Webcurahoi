@@ -8,13 +8,17 @@ import { Campaign } from "@/lib/mock-campaigns-data";
 interface Result {
   campaigns: Campaign[];
   loading: boolean;
-  source: "api" | "mock";
+  source: "api" | "empty";
 }
 
-export function useCampaigns(fallback: Campaign[]): Result {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(fallback);
+/**
+ * Chỉ lấy data từ backend. Không dùng fallback mock.
+ * DB trống → campaigns = [] → component hiển thị empty state.
+ */
+export function useCampaigns(): Result {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"api" | "mock">("mock");
+  const [source, setSource] = useState<"api" | "empty">("empty");
 
   useEffect(() => {
     let cancelled = false;
@@ -25,15 +29,14 @@ export function useCampaigns(fallback: Campaign[]): Result {
         setCampaigns(data.map(mapCampaign));
         setSource("api");
       } else {
-        setCampaigns(fallback);
-        setSource("mock");
+        setCampaigns([]);
+        setSource("empty");
       }
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { campaigns, loading, source };

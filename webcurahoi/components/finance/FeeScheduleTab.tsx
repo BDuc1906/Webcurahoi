@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import {
-  FileText,
   Download,
   Search,
   Filter,
@@ -10,54 +9,9 @@ import {
   Building2,
   User,
   Receipt,
+  Inbox,
 } from "lucide-react";
-import { MOCK_DOCUMENTS } from "@/lib/mock-data";
 import { financeApi, FeeScheduleItem } from "@/lib/api-client";
-
-const FALLBACK_SCHEDULES: FeeScheduleItem[] = [
-  {
-    code: "HP-TAPTHE",
-    name: "Hội phí hội viên tập thể / đơn vị pháp nhân",
-    category: "ANNUAL_MEMBERSHIP_FEE",
-    targetGroup: "ORGANIZATION",
-    minAmount: 2000000,
-    maxAmount: 5000000,
-    note: "Doanh nghiệp, bệnh viện, viện nghiên cứu, phòng khám thành viên. Mức thu tùy quy mô.",
-  },
-  {
-    code: "HP-CANHAN",
-    name: "Hội phí hội viên cá nhân",
-    category: "ANNUAL_MEMBERSHIP_FEE",
-    targetGroup: "INDIVIDUAL",
-    minAmount: 200000,
-    maxAmount: 500000,
-    note: "Bác sĩ, dược sĩ, y sĩ, lương y, cán bộ y tế cộng đồng. Miễn giảm cho sinh viên y khoa, hội viên cao tuổi, hoàn cảnh khó khăn.",
-  },
-  {
-    code: "TL-VIEN-TT",
-    name: "Phí thẩm định, cấp quyết định thành lập Viện, Trung tâm",
-    category: "ESTABLISHMENT_FEE",
-    minAmount: null,
-    maxAmount: null,
-    note: "Cập nhật theo quyết định của Trung ương Hội.",
-  },
-  {
-    code: "TL-CHIHOI",
-    name: "Phí thành lập Liên Chi hội, Chi hội, Ban chuyên môn",
-    category: "ESTABLISHMENT_FEE",
-    minAmount: null,
-    maxAmount: null,
-    note: "Cập nhật theo quyết định của Trung ương Hội.",
-  },
-  {
-    code: "TL-DONVI-VPDD",
-    name: "Phí thẩm định hồ sơ đơn vị thành viên, văn phòng đại diện",
-    category: "ESTABLISHMENT_FEE",
-    minAmount: null,
-    maxAmount: null,
-    note: "Cập nhật theo quyết định của Trung ương Hội.",
-  },
-];
 
 function formatVnd(n: number | null): string {
   if (n == null) return "Theo QĐ Trung ương Hội";
@@ -73,8 +27,9 @@ function formatRange(min: number | null, max: number | null): string {
 }
 
 export default function FeeScheduleTab() {
-  const [schedules, setSchedules] = useState<FeeScheduleItem[]>(FALLBACK_SCHEDULES);
-  const [documents, setDocuments] = useState<any[]>(MOCK_DOCUMENTS);
+  const [schedules, setSchedules] = useState<FeeScheduleItem[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<
     "ALL" | "ANNUAL_MEMBERSHIP_FEE" | "ESTABLISHMENT_FEE"
@@ -87,8 +42,8 @@ export default function FeeScheduleTab() {
         financeApi.feeSchedules(),
         financeApi.documents(),
       ]);
-      if (!cancelled && s && s.length > 0) setSchedules(s);
-      if (!cancelled && d && d.length > 0) {
+      if (!cancelled && s) setSchedules(s);
+      if (!cancelled && d) {
         setDocuments(
           d.map((x) => ({
             id: x.id,
@@ -100,6 +55,7 @@ export default function FeeScheduleTab() {
           }))
         );
       }
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -159,69 +115,78 @@ export default function FeeScheduleTab() {
           </div>
         </div>
 
-        <div className="overflow-x-auto border border-slate-300 rounded-xs bg-white">
-          <table className="w-full text-left text-xs min-w-[720px]">
-            <thead className="bg-[#f8fafc] text-slate-800 font-bold border-b border-slate-300 uppercase text-[10.5px] tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3 w-32">Mã</th>
-                <th className="py-2.5 px-3">Tên loại phí / hội phí</th>
-                <th className="py-2.5 px-3 w-40">Đối tượng</th>
-                <th className="py-2.5 px-3 w-60 text-right">Định mức</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredSchedules.length === 0 && (
+        {loading ? (
+          <div className="p-10 text-center text-slate-400 text-sm bg-white border border-slate-300 rounded-xs">
+            Đang tải biểu mức phí...
+          </div>
+        ) : filteredSchedules.length === 0 ? (
+          <div className="p-10 text-center bg-white border border-dashed border-slate-300 rounded-xs">
+            <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="font-bold text-slate-600 text-sm">
+              Chưa có biểu mức phí nào
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Ban Tài chính & Quỹ chưa cập nhật biểu phí vào hệ thống.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-slate-300 rounded-xs bg-white">
+            <table className="w-full text-left text-xs min-w-[720px]">
+              <thead className="bg-[#f8fafc] text-slate-800 font-bold border-b border-slate-300 uppercase text-[10.5px] tracking-wider">
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-500">
-                    Không có biểu phí nào phù hợp bộ lọc.
-                  </td>
+                  <th className="py-2.5 px-3 w-32">Mã</th>
+                  <th className="py-2.5 px-3">Tên loại phí / hội phí</th>
+                  <th className="py-2.5 px-3 w-40">Đối tượng</th>
+                  <th className="py-2.5 px-3 w-60 text-right">Định mức</th>
                 </tr>
-              )}
-              {filteredSchedules.map((s) => (
-                <tr key={s.code} className="hover:bg-slate-50">
-                  <td className="py-3 px-3 font-mono font-bold text-[#991b1b] whitespace-nowrap">
-                    {s.code}
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-slate-900 font-serif">
-                      {s.name}
-                    </div>
-                    {s.note && (
-                      <div className="text-[11px] text-slate-500 italic mt-0.5 leading-snug">
-                        {s.note}
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredSchedules.map((s) => (
+                  <tr key={s.code} className="hover:bg-slate-50">
+                    <td className="py-3 px-3 font-mono font-bold text-[#991b1b] whitespace-nowrap">
+                      {s.code}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-slate-900 font-serif">
+                        {s.name}
                       </div>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 whitespace-nowrap">
-                    {s.targetGroup === "ORGANIZATION" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                        <Building2 className="w-3 h-3" /> Tập thể
-                      </span>
-                    ) : s.targetGroup === "INDIVIDUAL" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <User className="w-3 h-3" /> Cá nhân
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                    {s.category === "ESTABLISHMENT_FEE"
-                      ? formatVnd(s.minAmount ?? s.maxAmount)
-                      : formatRange(s.minAmount, s.maxAmount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      {s.note && (
+                        <div className="text-[11px] text-slate-500 italic mt-0.5 leading-snug">
+                          {s.note}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      {s.targetGroup === "ORGANIZATION" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          <Building2 className="w-3 h-3" /> Tập thể
+                        </span>
+                      ) : s.targetGroup === "INDIVIDUAL" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <User className="w-3 h-3" /> Cá nhân
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                      {s.category === "ESTABLISHMENT_FEE"
+                        ? formatVnd(s.minAmount ?? s.maxAmount)
+                        : formatRange(s.minAmount, s.maxAmount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="bg-amber-50 border border-amber-300 rounded-xs p-3 text-[11px] text-amber-900 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <span>
-            Mức thu nêu trên được quy định tại Nghị quyết Ban Chấp hành Trung ương Hội
-            nhiệm kỳ 2021 – 2026. Chính sách miễn giảm áp dụng cho sinh viên y khoa,
-            hội viên cao tuổi và hoàn cảnh đặc biệt khó khăn.
+            Mức thu nêu trên được quy định tại Nghị quyết Ban Chấp hành Trung
+            ương Hội nhiệm kỳ 2021 – 2026. Chính sách miễn giảm áp dụng cho sinh
+            viên y khoa, hội viên cao tuổi và hoàn cảnh đặc biệt khó khăn.
           </span>
         </div>
       </section>
@@ -237,41 +202,57 @@ export default function FeeScheduleTab() {
           </h2>
         </div>
 
-        <div className="space-y-3">
-          {documents.map((doc) => (
-            <div
-              key={doc.id}
-              className="p-4 bg-white rounded-xs border border-slate-300 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:border-red-400 transition-colors"
-            >
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xs bg-red-50 border border-red-200 text-[#991b1b] flex items-center justify-center shrink-0">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  {doc.code && (
-                    <span className="font-mono text-[11px] font-bold text-[#991b1b] block">
-                      Số: {doc.code}
-                    </span>
-                  )}
-                  <h4 className="font-bold text-sm text-slate-900 font-serif leading-snug">
-                    {doc.title}
-                  </h4>
-                  {doc.issuedDate && (
-                    <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                      Ngày ban hành: {doc.issuedDate}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <a
-                href={doc.fileUrl || "#"}
-                className="shrink-0 self-start sm:self-auto px-3 py-1.5 bg-[#991b1b] hover:bg-red-800 text-white rounded-xs font-bold text-xs flex items-center gap-1.5 transition-colors"
+        {loading ? (
+          <div className="p-8 text-center text-slate-400 text-sm">
+            Đang tải kho văn bản...
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="p-10 text-center bg-white border border-dashed border-slate-300 rounded-xs">
+            <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="font-bold text-slate-600 text-sm">
+              Chưa có văn bản nào
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Kho văn bản pháp quy sẽ hiển thị khi Trung ương Hội đăng tải.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="p-4 bg-white rounded-xs border border-slate-300 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:border-red-400 transition-colors"
               >
-                <Download className="w-3.5 h-3.5" /> Tải PDF
-              </a>
-            </div>
-          ))}
-        </div>
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xs bg-red-50 border border-red-200 text-[#991b1b] flex items-center justify-center shrink-0">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    {doc.code && (
+                      <span className="font-mono text-[11px] font-bold text-[#991b1b] block">
+                        Số: {doc.code}
+                      </span>
+                    )}
+                    <h4 className="font-bold text-sm text-slate-900 font-serif leading-snug">
+                      {doc.title}
+                    </h4>
+                    {doc.issuedDate && (
+                      <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                        Ngày ban hành: {doc.issuedDate}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={doc.fileUrl || "#"}
+                  className="shrink-0 self-start sm:self-auto px-3 py-1.5 bg-[#991b1b] hover:bg-red-800 text-white rounded-xs font-bold text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> Tải PDF
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

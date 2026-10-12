@@ -7,14 +7,13 @@ import {
   Users,
   ArrowRight,
   HeartHandshake,
-  Database,
-  AlertCircle,
+  Inbox,
 } from "lucide-react";
-import { MOCK_CAMPAIGNS, Campaign } from "@/lib/mock-campaigns-data";
+import { Campaign } from "@/lib/mock-campaigns-data";
 import { useCampaigns } from "@/hooks/useCampaigns";
 
 export default function CampaignCards() {
-  const { campaigns, source } = useCampaigns(MOCK_CAMPAIGNS);
+  const { campaigns, loading } = useCampaigns();
 
   return (
     <section className="space-y-4">
@@ -27,30 +26,30 @@ export default function CampaignCards() {
             CÁC QUỸ ĐANG VẬN ĐỘNG & TIẾN ĐỘ QUYÊN GÓP
           </h2>
         </div>
-        <SourceBadge source={source} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {campaigns.map((c) => (
-          <CampaignCard key={c.slug} campaign={c} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="p-10 text-center text-slate-400 text-sm bg-white border border-slate-300 rounded-xs">
+          Đang tải danh sách chiến dịch...
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="p-10 text-center bg-white border border-dashed border-slate-300 rounded-xs">
+          <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <p className="font-bold text-slate-600 text-sm">
+            Chưa có chiến dịch thiện nguyện nào
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Ban Tài chính & Quỹ chưa tạo chiến dịch trong hệ thống.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {campaigns.map((c) => (
+            <CampaignCard key={c.slug} campaign={c} />
+          ))}
+        </div>
+      )}
     </section>
-  );
-}
-
-function SourceBadge({ source }: { source: "api" | "mock" }) {
-  if (source === "api") {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-xs">
-        <Database className="w-3 h-3" /> Dữ liệu thật từ Backend
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-xs">
-      <AlertCircle className="w-3 h-3" /> Dữ liệu mẫu (Backend trống)
-    </span>
   );
 }
 

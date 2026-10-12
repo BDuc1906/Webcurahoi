@@ -8,13 +8,8 @@ import {
   Medal,
   Crown,
   Star,
-  Database,
-  AlertCircle,
+  Inbox,
 } from "lucide-react";
-import {
-  MOCK_HONOR_ROLL_YEAR,
-  MOCK_HONOR_ROLL_QUARTER,
-} from "@/lib/mock-campaigns-data";
 import { useHonorRoll } from "@/hooks/useHonorRoll";
 
 type Period = "quarter" | "year";
@@ -22,10 +17,7 @@ type Period = "quarter" | "year";
 export default function HonorRoll() {
   const [period, setPeriod] = useState<Period>("year");
 
-  const fallback =
-    period === "year" ? MOCK_HONOR_ROLL_YEAR : MOCK_HONOR_ROLL_QUARTER;
-
-  const { entries, source } = useHonorRoll(period, fallback);
+  const { entries, loading } = useHonorRoll(period);
 
   const totalAmount = entries.reduce((acc, e) => acc + e.totalAmount, 0);
 
@@ -51,46 +43,33 @@ export default function HonorRoll() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-            <div className="flex items-center gap-1 bg-black/30 rounded-xs p-1">
-              <button
-                onClick={() => setPeriod("quarter")}
-                className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
-                  period === "quarter"
-                    ? "bg-amber-400 text-amber-950"
-                    : "text-amber-100 hover:bg-white/10"
-                }`}
-              >
-                Quý này
-              </button>
-              <button
-                onClick={() => setPeriod("year")}
-                className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
-                  period === "year"
-                    ? "bg-amber-400 text-amber-950"
-                    : "text-amber-100 hover:bg-white/10"
-                }`}
-              >
-                Cả năm 2026
-              </button>
-            </div>
+          <div className="flex items-center gap-1 bg-black/30 rounded-xs p-1 shrink-0 self-start sm:self-auto">
+            <button
+              onClick={() => setPeriod("quarter")}
+              className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
+                period === "quarter"
+                  ? "bg-amber-400 text-amber-950"
+                  : "text-amber-100 hover:bg-white/10"
+              }`}
+            >
+              Quý này
+            </button>
+            <button
+              onClick={() => setPeriod("year")}
+              className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
+                period === "year"
+                  ? "bg-amber-400 text-amber-950"
+                  : "text-amber-100 hover:bg-white/10"
+              }`}
+            >
+              Cả năm 2026
+            </button>
           </div>
         </div>
 
         <div className="mt-3 pt-3 border-t border-amber-300/30 flex justify-between items-center text-[11px]">
-          <span className="inline-flex items-center gap-2">
-            <span className="text-amber-100/90">
-              Top {entries.length} nhà hảo tâm xuất sắc nhất
-            </span>
-            {source === "api" ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-900/40 border border-emerald-400/40 px-2 py-0.5 rounded-xs">
-                <Database className="w-3 h-3" /> Backend
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-200 bg-amber-900/40 border border-amber-400/40 px-2 py-0.5 rounded-xs">
-                <AlertCircle className="w-3 h-3" /> Mẫu
-              </span>
-            )}
+          <span className="text-amber-100/90">
+            Top {entries.length} nhà hảo tâm xuất sắc nhất
           </span>
           <span className="font-mono font-bold text-amber-200">
             Tổng: {new Intl.NumberFormat("vi-VN").format(totalAmount)} đ
@@ -98,9 +77,19 @@ export default function HonorRoll() {
         </div>
       </div>
 
-      {entries.length === 0 ? (
-        <div className="p-10 text-center text-slate-500 text-xs">
-          Chưa có giao dịch thiện nguyện nào trong kỳ này.
+      {loading ? (
+        <div className="p-10 text-center text-slate-500 text-sm">
+          Đang tải bảng vàng...
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="p-10 text-center">
+          <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <p className="font-bold text-slate-600 text-sm">
+            Chưa có giao dịch thiện nguyện nào trong kỳ này
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Bảng vàng sẽ cập nhật khi có nhà hảo tâm đóng góp.
+          </p>
         </div>
       ) : (
         <>

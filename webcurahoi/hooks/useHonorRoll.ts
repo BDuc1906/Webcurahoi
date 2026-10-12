@@ -10,16 +10,16 @@ type Period = "quarter" | "year";
 interface Result {
   entries: HonorRollEntry[];
   loading: boolean;
-  source: "api" | "mock";
+  source: "api" | "empty";
 }
 
-export function useHonorRoll(
-  period: Period,
-  fallback: HonorRollEntry[]
-): Result {
-  const [entries, setEntries] = useState<HonorRollEntry[]>(fallback);
+/**
+ * Chỉ lấy data từ backend. Không fallback mock.
+ */
+export function useHonorRoll(period: Period): Result {
+  const [entries, setEntries] = useState<HonorRollEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"api" | "mock">("mock");
+  const [source, setSource] = useState<"api" | "empty">("empty");
 
   useEffect(() => {
     let cancelled = false;
@@ -30,15 +30,14 @@ export function useHonorRoll(
         setEntries(data.map(mapHonorRoll));
         setSource("api");
       } else {
-        setEntries(fallback);
-        setSource("mock");
+        setEntries([]);
+        setSource("empty");
       }
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
   return { entries, loading, source };

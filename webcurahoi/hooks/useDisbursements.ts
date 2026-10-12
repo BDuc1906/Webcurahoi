@@ -20,16 +20,17 @@ async function fetchJson(path: string) {
 interface Result {
   disbursements: Disbursement[];
   loading: boolean;
-  source: "api" | "mock";
+  source: "api" | "empty";
 }
 
-export function useDisbursements(
-  campaignSlugs: string[],
-  fallback: Disbursement[]
-): Result {
-  const [disbursements, setDisbursements] = useState<Disbursement[]>(fallback);
+/**
+ * Chỉ lấy data từ backend. Không fallback mock.
+ * @param campaignSlugs Danh sách slug chiến dịch cần fetch
+ */
+export function useDisbursements(campaignSlugs: string[]): Result {
+  const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"api" | "mock">("mock");
+  const [source, setSource] = useState<"api" | "empty">("empty");
 
   useEffect(() => {
     let cancelled = false;
@@ -51,8 +52,8 @@ export function useDisbursements(
         setDisbursements(all);
         setSource("api");
       } else {
-        setDisbursements(fallback);
-        setSource("mock");
+        setDisbursements([]);
+        setSource("empty");
       }
       setLoading(false);
     })();
