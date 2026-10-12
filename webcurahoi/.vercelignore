@@ -1,0 +1,29 @@
+# ==========================================
+# .vercelignore — Không upload các thư mục này lên Vercel
+# ==========================================
+
+# Backend NestJS (deploy riêng trên Railway)
+backend/
+
+# Scripts tiện ích (không cần cho frontend)
+scratch/
+scripts/
+
+# File không cần thiết khi build
+repomix-output.xml
+check-diacritics.mjs
+normalize-nfc.mjs
+
+# Biến môi trường (BẢO MẬT — không bao giờ upload)
+.env
+.env.local
+.env*.local
+
+# Cache và dependencies
+.next/
+node_modules/
+*.log
+
+# File hệ thống
+.DS_Store
+Thumbs.db
