@@ -1,0 +1,95 @@
+name: CI — Kiểm tra chất lượng code
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # FRONTEND — Next.js
+  # ============================================================
+  frontend:
+    name: Frontend — Type check + Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./webcurahoi
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: webcurahoi/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Lint (Next.js ESLint)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api
+          ADMIN_API_KEY: dummy-key-for-build-only
+
+  # ============================================================
+  # BACKEND — NestJS
+  # ============================================================
+  backend:
+    name: Backend — Type check + Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./webcurahoi/backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: webcurahoi/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Build NestJS
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          ADMIN_API_KEY: dummy-admin-key-1234567890
+          WEBHOOK_API_KEY: dummy-webhook-key-1234567890
+          BANK_ACCOUNT_NO: "190820088888"
+          BANK_ACCOUNT_NAME: "TRUNG UONG HOI GDCSSKCD VN"
