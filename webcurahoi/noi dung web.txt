@@ -1,0 +1,46 @@
+YÊU CẦU THIẾT KẾ TRANG WEB CỦA HỘI GDCSSKCĐ VN
+Trang Web gồm 5 mảng nội dung sau đây:
+I. Thông tin chung về Hội
+1)	Giới thiệu chung về Hội
+a)	Giới thiệu tóm tắt về Hội
+b)	Ban lãnh đạo Hội (Thường trực)
+2)	Các Văn bản quan trọng của Hội
+a)	Điều lệ Hội, Quyết định thành lập Hội
+b)	Các Văn bản quan trọng của BCH, Ban Thường vụ (cập nhật thường xuyên)
+II. Tin tức, sự kiện (đưa tin cập nhật)
+1)	Các chính sách, chiến lược, luật pháp về bảo vệ, chăm sóc, nâng cao sức khỏe nhân dân 
+2)	Các sự kiện lớn của Hội (Đại Hội; Hội nghị BCH, Ban Thường vụ, Ban Thường trực; Hội thảo, Tọa đàm khoa học; Thiện nguyện; Thể thao, Văn nghệ,...)
+3)	Các hoạt động quan trọng của các đơn vị thuộc hội (Thành lập mới, các sự kiện, ...)
+4)	Các hoạt động liên quan khác 
+III. Quản trị Tổ chức của Hội
+1)	Quy định về thành lập mới, giải thể Chi hội (Văn bản) 
+2)	Quy định về thành lập mới, giải thể Liên Chi hội (Văn bản)
+3)	Quy định về thành lập, giải thể các Ban chuyên môn của Hội (Văn bản)
+4)	Quy định về thành lập, giải thể Đơn vị pháp nhân thuộc Hội (Viện, Trung tâm hoạt động khoa học và công nghệ - Văn bản)
+5)	Quản trị Hệ thống tổ chức Hội:
+a)	Liên chi Hội (CSDL cập nhật)
+b)	Chi hội (CSDL cập nhật)
+c)	Cơ quan TW Hội: Văn phòng và các Ban chuyên môn (CSDL cập nhật)
+d)	Viện và Trung tâm (CSDL cập nhật)
+e)	Văn phòng đại diện (CSDL cập nhật)
+f)	Doanh nghiệp hội viên (CSDL cập nhật)
+6)	Chế độ báo cáo Trung ương Hội
+a)	Quy định về chế độ báo cáo của các đơn vị thuộc Hội (Văn bản)
+b)	Báo cáo offline/ online với TW Hội (Liên chi Hội, Chi hội, các Ban chuyên môn, Viện, Trung tâm, Tạp chí,...) 
+*** Lưu ý: Mô tả các trường thông tin của CSDL.
+IV. Quản trị Nhân sự của Hội 
+1)	Ban chấp hành TW Hội (CSDL cập nhật)
+2)	Ban Thường vụ TW Hội (CSDL cập nhật)
+3)	Lãnh đạo các Đơn vị (CSDL cập nhật): Ban chuyên môn, VP đại diện, Liên chi hội, Chi Hội, Viện, Trung tâm
+4)	Quy định về kết nạp hội viên mới của Hội (Văn bản):
+a)	Hội viên tổ chức/ tập thể
+b)	Hội viên cá nhân 
+5)	Quy định về Đại hội, bầu cử BCH chi hội, liên chi Hội (Văn bản); 
+6)	Quy định về bổ nhiệm cán bộ lãnh đạo các đơn vị trực thuộc Hội – Văn bản (Ban chuyên môn, Văn phòng đại diện, Đơn vị pháp nhân trực thuộc) 
+*** Lưu ý: Mô tả các trường thông tin của CSDL.
+V. Quản trị Tài chính của Hội
+1)	Quy định về phí, hội phí của Hội (Văn bản)
+a)	Phí thành lập Viện, Trung tâm, Chi hội
+b)	Hội phí của hội viên (tập thể, cá nhân)
+2)	Đóng phí, hội phí trực tuyến-online (các đơn vị pháp nhân, các chi Hội: thông báo nhắc nhở; lưu giữ thông tin)
+3)	Đóng góp Từ thiện
