@@ -197,10 +197,17 @@ export default function PublicHeader() {
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
                 </Link>
                 <Link
+                  href="/he-thong-to-chuc?type=REP_OFFICE"
+                  className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
+                >
+                  <span>Cơ quan Đại diện các khu vực</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                </Link>
+                <Link
                   href="/he-thong-to-chuc?type=BRANCH"
                   className="h-11 px-4 flex items-center justify-between text-xs font-medium text-slate-700 hover:bg-red-50 hover:text-[#991b1b] transition-colors group/item"
                 >
-                  <span>Hệ thống Chi hội tỉnh thành</span>
+                  <span>Hệ thống Chi hội 63 tỉnh thành</span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
                 </Link>
                 <Link
@@ -216,6 +223,13 @@ export default function PublicHeader() {
                 >
                   <span>Đơn vị thành viên & Doanh nghiệp</span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                </Link>
+                <Link
+                  href="/he-thong-to-chuc?view=tree"
+                  className="h-11 px-4 flex items-center justify-between text-xs font-bold text-[#991b1b] bg-amber-50/50 hover:bg-amber-100/70 transition-colors group/item"
+                >
+                  <span>Sơ đồ cơ cấu tổ chức (Cây phân cấp)</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#991b1b] group-hover/item:translate-x-0.5 transition-all shrink-0" />
                 </Link>
               </div>
             </li>
@@ -381,14 +395,20 @@ export default function PublicHeader() {
               <Link href="/he-thong-to-chuc?type=CENTRAL_OFFICE" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
                 • Cơ quan Trung ương & Các ban
               </Link>
+              <Link href="/he-thong-to-chuc?type=REP_OFFICE" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
+                • Cơ quan Đại diện các khu vực
+              </Link>
               <Link href="/he-thong-to-chuc?type=BRANCH" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
-                • Hệ thống Chi hội tỉnh thành
+                • Hệ thống Chi hội 63 tỉnh thành
               </Link>
               <Link href="/he-thong-to-chuc?type=INSTITUTE" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
                 • Viện & Trung tâm trực thuộc
               </Link>
               <Link href="/he-thong-to-chuc?type=ENTERPRISE" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 hover:text-white">
                 • Đơn vị thành viên & Doanh nghiệp
+              </Link>
+              <Link href="/he-thong-to-chuc?view=tree" onClick={() => setMobileMenuOpen(false)} className="block py-1.5 text-amber-300 font-bold hover:text-white">
+                • Sơ đồ cơ cấu tổ chức (Cây phân cấp)
               </Link>
             </div>
           </div>
