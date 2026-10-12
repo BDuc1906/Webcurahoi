@@ -7,10 +7,6 @@ import {
   FileText,
   ShieldCheck,
 } from "lucide-react";
-import {
-  TOTAL_CHARITY_AMOUNT,
-  TOTAL_FEE_AMOUNT,
-} from "@/lib/mock-finance-data";
 
 type Tab = "ALL" | "CHARITY_DONATION" | "ANNUAL_MEMBERSHIP_FEE";
 
@@ -18,6 +14,8 @@ interface Props {
   activeTab: Tab;
   charityCount: number;
   feeCount: number;
+  charityAmount: number;
+  feeAmount: number;
   liveCount: number;
   onSelectTab: (tab: Tab) => void;
 }
@@ -26,11 +24,15 @@ export default function StatementStatsCards({
   activeTab,
   charityCount,
   feeCount,
+  charityAmount,
+  feeAmount,
   liveCount,
   onSelectTab,
 }: Props) {
+  // liveCount đã được gộp trong charityCount + feeCount (từ baseRows của parent)
+  // nên chỉ hiển thị thông tin, không cộng vào tổng
   const total = charityCount + feeCount;
-  const totalAmount = TOTAL_CHARITY_AMOUNT + TOTAL_FEE_AMOUNT;
+  const totalAmount = charityAmount + feeAmount;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -52,11 +54,13 @@ export default function StatementStatsCards({
         </div>
         <div>
           <div className="text-xl sm:text-2xl font-mono font-black text-rose-900">
-            {new Intl.NumberFormat("vi-VN").format(TOTAL_CHARITY_AMOUNT)} đ
+            {new Intl.NumberFormat("vi-VN").format(charityAmount)} đ
           </div>
           <p className="text-[11px] text-slate-600 mt-1 flex items-center justify-between">
             <span>{charityCount} nhà hảo tâm</span>
-            <span className="font-bold text-emerald-700">Đạt 70%</span>
+            <span className="font-bold text-emerald-700">
+              {charityAmount > 0 ? "Đang tiếp nhận" : "Chưa có"}
+            </span>
           </p>
         </div>
       </button>
@@ -79,11 +83,13 @@ export default function StatementStatsCards({
         </div>
         <div>
           <div className="text-xl sm:text-2xl font-mono font-black text-amber-950">
-            {new Intl.NumberFormat("vi-VN").format(TOTAL_FEE_AMOUNT)} đ
+            {new Intl.NumberFormat("vi-VN").format(feeAmount)} đ
           </div>
           <p className="text-[11px] text-slate-600 mt-1 flex items-center justify-between">
             <span>{feeCount} chi hội & hội viên</span>
-            <span className="font-bold text-emerald-700">Hoàn thành</span>
+            <span className="font-bold text-emerald-700">
+              {feeAmount > 0 ? "Đang thu" : "Chưa có"}
+            </span>
           </p>
         </div>
       </button>
@@ -106,13 +112,15 @@ export default function StatementStatsCards({
         </div>
         <div>
           <div className="text-xl sm:text-2xl font-mono font-black text-slate-900">
-            {total + liveCount} lượt
+            {total} lượt
           </div>
           <p className="text-[11px] text-slate-600 mt-1 flex items-center justify-between">
             <span>
               Tổng thu: {new Intl.NumberFormat("vi-VN").format(totalAmount)} đ
             </span>
-            <span className="font-bold text-emerald-700">100% Khớp</span>
+            <span className="font-bold text-emerald-700">
+              {total > 0 ? "100% Khớp" : "Chưa có"}
+            </span>
           </p>
         </div>
       </button>

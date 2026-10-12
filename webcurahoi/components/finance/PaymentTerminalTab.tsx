@@ -6,6 +6,7 @@ import CampaignCards from "./campaign/CampaignCards";
 import DisbursementsSection from "./campaign/DisbursementsSection";
 import HonorRoll from "./campaign/HonorRoll";
 import { usePaymentFlow } from "@/hooks/usePaymentFlow";
+import { usePaymentPrefill } from "@/hooks/usePaymentPrefill";
 import PaymentStepProgress from "./payment/PaymentStepProgress";
 import PaymentFormStep from "./payment/PaymentFormStep";
 import PaymentWaitingStep from "./payment/PaymentWaitingStep";
@@ -22,6 +23,8 @@ export default function PaymentTerminalTab() {
     reset,
   } = usePaymentFlow();
 
+  const { prefill, setPrefill } = usePaymentPrefill();
+
   return (
     <div className="space-y-12">
       {/* ============================================================
@@ -37,7 +40,18 @@ export default function PaymentTerminalTab() {
       {/* ============================================================
           BƯỚC 1: FORM NHẬP THÔNG TIN
       ============================================================ */}
-      {step === "FORM" && <PaymentFormStep onSubmit={startPayment} />}
+      {step === "FORM" && (
+        <PaymentFormStep
+          onSubmit={(input) => {
+            // Xóa prefill sau khi dùng để tránh dính lại lần sau
+            setPrefill(null);
+            startPayment(input);
+          }}
+          initialPurpose={prefill?.purpose}
+          initialAmount={prefill?.amount}
+          initialName={prefill?.payerName}
+        />
+      )}
 
       {/* ============================================================
           BƯỚC 2: CHỜ THANH TOÁN — QR + RADAR + ĐẾM NGƯỢC

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { MOCK_FINANCE_TRANSACTIONS } from "@/lib/mock-finance-data";
 import { FinanceTransaction } from "@/lib/db/schema";
 import { useLiveTransactions } from "@/hooks/useLiveTransactions";
+import { useStatement } from "@/hooks/useStatement";
 
 import StatementStatsCards from "./statement/StatementStatsCards";
 import StatementSearchBar from "./statement/StatementSearchBar";
@@ -15,8 +15,25 @@ import StatementReceiptModal from "./statement/StatementReceiptModal";
 const PAGE_SIZE = 15;
 
 export default function PublicFinanceStatement() {
+  // ---- Dòng mới realtime từ Payment Terminal ----
   const liveRows = useLiveTransactions();
 
+  // ---- Lấy data 100% từ backend ----
+  const { rows: apiRows } = useStatement(500);
+
+  // Gộp: dòng realtime lên trước + data backend (dedup theo code)
+  const baseRows = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: FinanceTransaction[] = [];
+    for (const tx of [...liveRows, ...apiRows]) {
+      if (seen.has(tx.code)) continue;
+      seen.add(tx.code);
+      merged.push(tx);
+    }
+    return merged;
+  }, [liveRows, apiRows]);
+
+  // ---- State bộ lọc ----
   const [activeTab, setActiveTab] = useState<TabFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [bankFilter, setBankFilter] = useState("ALL");
@@ -24,24 +41,35 @@ export default function PublicFinanceStatement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTx, setSelectedTx] = useState<FinanceTransaction | null>(null);
 
+  // ---- Đếm + tính tổng theo category (100% từ data thật) ----
+  // Lưu ý: baseRows đã bao gồm liveRows, nên không cộng thêm liveCount vào tổng
   const charityCount = useMemo(
-    () =>
-      MOCK_FINANCE_TRANSACTIONS.filter(
-        (t) => t.category === "CHARITY_DONATION"
-      ).length,
-    []
+    () => baseRows.filter((t) => t.category === "CHARITY_DONATION").length,
+    [baseRows]
   );
   const feeCount = useMemo(
-    () =>
-      MOCK_FINANCE_TRANSACTIONS.filter(
-        (t) => t.category === "ANNUAL_MEMBERSHIP_FEE"
-      ).length,
-    []
+    () => baseRows.filter((t) => t.category === "ANNUAL_MEMBERSHIP_FEE").length,
+    [baseRows]
   );
 
+  const charityAmount = useMemo(
+    () =>
+      baseRows
+        .filter((t) => t.category === "CHARITY_DONATION")
+        .reduce((s, t) => s + t.amount, 0),
+    [baseRows]
+  );
+  const feeAmount = useMemo(
+    () =>
+      baseRows
+        .filter((t) => t.category === "ANNUAL_MEMBERSHIP_FEE")
+        .reduce((s, t) => s + t.amount, 0),
+    [baseRows]
+  );
+
+  // ---- Lọc dữ liệu ----
   const filteredTransactions = useMemo(() => {
-    const combined = [...liveRows, ...MOCK_FINANCE_TRANSACTIONS];
-    return combined.filter((tx) => {
+    return baseRows.filter((tx) => {
       if (activeTab !== "ALL" && tx.category !== activeTab) return false;
 
       if (searchQuery.trim() !== "") {
@@ -101,8 +129,9 @@ export default function PublicFinanceStatement() {
 
       return true;
     });
-  }, [activeTab, searchQuery, bankFilter, amountRange, liveRows]);
+  }, [activeTab, searchQuery, bankFilter, amountRange, baseRows]);
 
+  // ---- Phân trang ----
   const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE) || 1;
   const paginatedRows = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -114,6 +143,7 @@ export default function PublicFinanceStatement() {
     [filteredTransactions]
   );
 
+  // ---- Handlers ----
   function handleChangeFilter(fn: () => void) {
     fn();
     setCurrentPage(1);
@@ -128,11 +158,14 @@ export default function PublicFinanceStatement() {
 
   return (
     <div className="space-y-8 font-gov">
+      {/* liveCount = 0 vì baseRows đã gộp liveRows rồi, không đếm trùng */}
       <StatementStatsCards
         activeTab={activeTab}
         charityCount={charityCount}
         feeCount={feeCount}
-        liveCount={liveRows.length}
+        charityAmount={charityAmount}
+        feeAmount={feeAmount}
+        liveCount={0}
         onSelectTab={(tab) => handleChangeFilter(() => setActiveTab(tab))}
       />
 
@@ -148,6 +181,7 @@ export default function PublicFinanceStatement() {
       />
 
       <div className="space-y-4">
+        {/* Banner đếm số GD realtime mới — vẫn dùng liveRows.length */}
         <StatementLiveBanner count={liveRows.length} />
 
         <StatementTable
@@ -155,8 +189,8 @@ export default function PublicFinanceStatement() {
           rows={paginatedRows}
           charityCount={charityCount}
           feeCount={feeCount}
-          liveCount={liveRows.length}
-          totalCount={MOCK_FINANCE_TRANSACTIONS.length}
+          liveCount={0}
+          totalCount={baseRows.length}
           totalAmount={currentFilteredSum}
           onSelectTab={(tab) => handleChangeFilter(() => setActiveTab(tab))}
           onSelectRow={setSelectedTx}

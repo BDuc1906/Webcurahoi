@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { CreditCard, QrCode, CheckCircle, Clock, Search, Filter, Download } from "lucide-react";
+import Link from "next/link";
+import {
+  CreditCard,
+  QrCode,
+  CheckCircle,
+  Clock,
+  Search,
+  Filter,
+  Download,
+  Upload,
+} from "lucide-react";
 
 export default function AdminFinancePage() {
   const [transactions, setTransactions] = useState([
@@ -55,33 +65,58 @@ export default function AdminFinancePage() {
             QUẢN TRỊ TÀI CHÍNH & ĐỐI SOÁT HỘI PHÍ VIETQR
           </h1>
           <p className="text-xs text-slate-500">
-            Theo dõi dòng tiền thu hội phí niên liễm, phí thành lập đơn vị và các khoản đóng góp từ thiện.
+            Theo dõi dòng tiền thu hội phí niên liễm, phí thành lập đơn vị và
+            các khoản đóng góp từ thiện.
           </p>
         </div>
 
-        <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5">
-          <Download className="w-4 h-4" /> Xuất Sổ Kế Toán (Excel)
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/admin/import/don-vi"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer"
+          >
+            <Upload className="w-4 h-4" /> Import Đơn Vị (CSV)
+          </Link>
+          <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer">
+            <Download className="w-4 h-4" /> Xuất Sổ Kế Toán (Excel)
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-xl border shadow-sm">
-          <span className="text-xs font-bold text-slate-500 uppercase">Tổng Thu Hội Phí (2026)</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">840.000.000 đ</div>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-1">Đạt 84% chỉ tiêu kế hoạch</p>
+          <span className="text-xs font-bold text-slate-500 uppercase">
+            Tổng Thu Hội Phí (2026)
+          </span>
+          <div className="text-2xl font-black text-slate-900 mt-1">
+            840.000.000 đ
+          </div>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-1">
+            Đạt 84% chỉ tiêu kế hoạch
+          </p>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow-sm">
-          <span className="text-xs font-bold text-slate-500 uppercase">Quỹ Thiện Nguyện Tiếp Nhận</span>
-          <div className="text-2xl font-black text-rose-600 mt-1">350.000.000 đ</div>
-          <p className="text-[11px] text-slate-500 mt-1">142 lượt ủng hộ trực tuyến</p>
+          <span className="text-xs font-bold text-slate-500 uppercase">
+            Quỹ Thiện Nguyện Tiếp Nhận
+          </span>
+          <div className="text-2xl font-black text-rose-600 mt-1">
+            350.000.000 đ
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">
+            142 lượt ủng hộ trực tuyến
+          </p>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow-sm">
-          <span className="text-xs font-bold text-slate-500 uppercase">Đối Soát Tự Động VietQR</span>
+          <span className="text-xs font-bold text-slate-500 uppercase">
+            Đối Soát Tự Động VietQR
+          </span>
           <div className="text-2xl font-black text-sky-600 mt-1">98.5%</div>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-1">Khớp lệnh tự động qua Webhook</p>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-1">
+            Khớp lệnh tự động qua Webhook
+          </p>
         </div>
       </div>
 

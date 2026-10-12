@@ -17,13 +17,21 @@ import {
   UnitStatusResponse,
   UnitPaymentRow,
 } from "@/lib/api-client";
+import CertificateModal from "./certificate/CertificateModal";
+import { PaymentPrefill } from "@/hooks/usePaymentPrefill";
 
-export default function UnitFeeLookupTab() {
+interface Props {
+  onGoToPayment?: (prefill: PaymentPrefill) => void;
+}
+
+export default function UnitFeeLookupTab({ onGoToPayment }: Props) {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<UnitStatusResponse | null>(null);
   const [payments, setPayments] = useState<UnitPaymentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [certificate, setCertificate] = useState<any | null>(null);
+  const [issuingCert, setIssuingCert] = useState(false);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +65,53 @@ export default function UnitFeeLookupTab() {
     setCode(sampleCode);
   };
 
+  /** Mở chứng nhận PDF của năm tương ứng */
+  async function handleOpenCertificate(year: number) {
+    if (!status) return;
+    setIssuingCert(true);
+    try {
+      const API =
+        process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+
+      // 1. Thử lấy chứng nhận đã có
+      let res = await fetch(
+        `${API}/finance/units/${status.unit.code}/certificates/${year}`
+      );
+
+      // 2. Nếu chưa có → cấp mới
+      if (!res.ok) {
+        res = await fetch(
+          `${API}/finance/units/${status.unit.code}/certificates/${year}/issue`,
+          { method: "POST" }
+        );
+      }
+
+      if (!res.ok) throw new Error("Không thể lấy chứng nhận");
+      const data = await res.json();
+      setCertificate(data);
+    } catch (e: any) {
+      alert(`Lỗi: ${e.message}`);
+    } finally {
+      setIssuingCert(false);
+    }
+  }
+
+  /** Bấm "Tạo QR nộp ngay" → nhảy sang Tab 3 với dữ liệu điền sẵn */
+  function handleGoToPayment() {
+    if (!status || !status.reminder || !onGoToPayment) {
+      // Fallback nếu không có callback
+      window.location.hash = "cong-chuyen-khoan";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    onGoToPayment({
+      purpose: "MEMBERSHIP_FEE",
+      amount: status.reminder.amountRemaining,
+      payerName: status.unit.name,
+      unitCode: status.unit.code,
+    });
+  }
+
   return (
     <div className="space-y-8">
       {/* KHỐI TRA CỨU */}
@@ -69,8 +124,9 @@ export default function UnitFeeLookupTab() {
             TRA CỨU TÌNH TRẠNG HỘI PHÍ THEO MÃ ĐƠN VỊ
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Dành cho Chi hội, Liên Chi hội, Viện, Trung tâm và Doanh nghiệp hội viên.
-            Nhập mã đơn vị để xem trạng thái đóng niên liễm và lịch sử giao dịch.
+            Dành cho Chi hội, Liên Chi hội, Viện, Trung tâm và Doanh nghiệp hội
+            viên. Nhập mã đơn vị để xem trạng thái đóng niên liễm và lịch sử
+            giao dịch.
           </p>
         </div>
 
@@ -187,7 +243,10 @@ export default function UnitFeeLookupTab() {
                       : "text-emerald-700"
                   }`}
                 >
-                  {new Intl.NumberFormat("vi-VN").format(status.totalOutstanding)} đ
+                  {new Intl.NumberFormat("vi-VN").format(
+                    status.totalOutstanding
+                  )}{" "}
+                  đ
                 </span>
               </div>
             </div>
@@ -218,10 +277,7 @@ export default function UnitFeeLookupTab() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    window.location.hash = "cong-chuyen-khoan";
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
+                  onClick={handleGoToPayment}
                   className="shrink-0 self-start px-4 py-2 bg-[#991b1b] hover:bg-red-800 text-white rounded-xs font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <QrCode className="w-4 h-4" /> Tạo QR nộp ngay
@@ -259,7 +315,10 @@ export default function UnitFeeLookupTab() {
                         {new Intl.NumberFormat("vi-VN").format(o.amountPaid)} đ
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono text-[#991b1b] font-bold">
-                        {new Intl.NumberFormat("vi-VN").format(o.amountRemaining)} đ
+                        {new Intl.NumberFormat("vi-VN").format(
+                          o.amountRemaining
+                        )}{" "}
+                        đ
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         {o.status === "PAID" ? (
@@ -278,8 +337,13 @@ export default function UnitFeeLookupTab() {
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         {o.status === "PAID" ? (
-                          <button className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-[#991b1b] rounded-xs text-[10px] font-bold border border-red-200 transition-colors cursor-pointer">
-                            <Download className="w-3 h-3" /> PDF
+                          <button
+                            onClick={() => handleOpenCertificate(o.year)}
+                            disabled={issuingCert}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 disabled:bg-slate-100 text-[#991b1b] rounded-xs text-[10px] font-bold border border-red-200 transition-colors cursor-pointer disabled:cursor-wait"
+                          >
+                            <Download className="w-3 h-3" />{" "}
+                            {issuingCert ? "Đang xử lý..." : "PDF"}
                           </button>
                         ) : (
                           <span className="text-slate-300 text-[10px]">—</span>
@@ -295,7 +359,8 @@ export default function UnitFeeLookupTab() {
           {payments.length > 0 && (
             <section className="bg-white border border-slate-300 rounded-xs shadow-2xs overflow-hidden">
               <div className="p-4 border-b border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-[#991b1b]" /> Lịch Sử Giao Dịch Đã Hoàn Tất
+                <Receipt className="w-4 h-4 text-[#991b1b]" /> Lịch Sử Giao
+                Dịch Đã Hoàn Tất
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs min-w-[640px]">
@@ -343,10 +408,17 @@ export default function UnitFeeLookupTab() {
             Nhập mã đơn vị để bắt đầu tra cứu
           </h3>
           <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-            Hệ thống sẽ hiển thị tình trạng đóng niên liễm các năm, số tiền còn nợ,
-            nhắc nhở hạn quyết toán và lịch sử giao dịch chi tiết.
+            Hệ thống sẽ hiển thị tình trạng đóng niên liễm các năm, số tiền còn
+            nợ, nhắc nhở hạn quyết toán và lịch sử giao dịch chi tiết.
           </p>
         </section>
+      )}
+
+      {certificate && (
+        <CertificateModal
+          data={certificate}
+          onClose={() => setCertificate(null)}
+        />
       )}
     </div>
   );

@@ -1,31 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Target,
   TrendingUp,
   Users,
   ArrowRight,
   HeartHandshake,
+  Database,
+  AlertCircle,
 } from "lucide-react";
 import { MOCK_CAMPAIGNS, Campaign } from "@/lib/mock-campaigns-data";
-import { financeApi } from "@/lib/api-client";
+import { useCampaigns } from "@/hooks/useCampaigns";
 
 export default function CampaignCards() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const data = await financeApi.campaigns();
-      if (!cancelled && Array.isArray(data) && data.length > 0) {
-        setCampaigns(data as Campaign[]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { campaigns, source } = useCampaigns(MOCK_CAMPAIGNS);
 
   return (
     <section className="space-y-4">
@@ -38,9 +27,7 @@ export default function CampaignCards() {
             CÁC QUỸ ĐANG VẬN ĐỘNG & TIẾN ĐỘ QUYÊN GÓP
           </h2>
         </div>
-        <span className="text-xs text-slate-500">
-          Cập nhật liên tục qua hệ thống hạch toán
-        </span>
+        <SourceBadge source={source} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -49,6 +36,21 @@ export default function CampaignCards() {
         ))}
       </div>
     </section>
+  );
+}
+
+function SourceBadge({ source }: { source: "api" | "mock" }) {
+  if (source === "api") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-xs">
+        <Database className="w-3 h-3" /> Dữ liệu thật từ Backend
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-xs">
+      <AlertCircle className="w-3 h-3" /> Dữ liệu mẫu (Backend trống)
+    </span>
   );
 }
 

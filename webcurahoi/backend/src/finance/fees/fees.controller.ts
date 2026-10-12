@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { FeesService } from './fees.service';
 
 @Controller('finance')
@@ -35,5 +35,17 @@ export class FeesController {
   @Get('certificates/verify/:verifyCode')
   verify(@Param('verifyCode') verifyCode: string) {
     return this.fees.verifyCertificate(verifyCode);
+  }
+
+  /**
+   * Cấp chứng nhận hoàn thành nghĩa vụ (idempotent — nếu đã có thì trả về cái cũ).
+   * Chỉ thành công khi đơn vị đã nộp đủ niên liễm năm đó.
+   */
+  @Post('units/:code/certificates/:year/issue')
+  issueCertificate(
+    @Param('code') code: string,
+    @Param('year', ParseIntPipe) year: number,
+  ) {
+    return this.fees.issueCertificate(code, year, 'Hệ thống tự động');
   }
 }

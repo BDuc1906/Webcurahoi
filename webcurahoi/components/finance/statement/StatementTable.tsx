@@ -23,7 +23,6 @@ export default function StatementTable({
   rows,
   charityCount,
   feeCount,
-  liveCount,
   totalCount,
   totalAmount,
   onSelectTab,
@@ -39,7 +38,7 @@ export default function StatementTable({
             activeClass="bg-slate-900 text-white border-slate-900"
             idleClass="bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
             label="Tất Cả Giao Dịch"
-            count={totalCount + liveCount}
+            count={totalCount}
           />
           <TabButton
             active={activeTab === "CHARITY_DONATION"}

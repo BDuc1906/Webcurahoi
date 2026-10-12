@@ -1,0 +1,25 @@
+﻿code,name,unitType,province,contactEmail,annualFee
+LCH-HANOI,Liên Chi hội Giáo dục Chăm sóc Sức khỏe Cộng đồng TP. Hà Nội,UNION_BRANCH,Hà Nội,lch.hanoi@vache.org.vn,15000000
+LCH-HCM,Liên Chi hội Giáo dục Chăm sóc Sức khỏe Cộng đồng TP. Hồ Chí Minh,UNION_BRANCH,TP. Hồ Chí Minh,lch.hcm@vache.org.vn,15000000
+CH-DANANG,Chi hội Dưỡng sinh và Chăm sóc Sức khỏe Người cao tuổi Quận Thanh Khê - Đà Nẵng,BRANCH,Đà Nẵng,ch.thanhkhe@vache.org.vn,5000000
+CH-HAIPHONG,Chi hội Giáo dục Chăm sóc Sức khỏe Cộng đồng Lê Tiến - Hải Phòng,BRANCH,Hải Phòng,ch.letien@vache.org.vn,5000000
+CH-NGHEAN,Chi hội Giáo dục Chăm sóc Sức khỏe Cộng đồng Tỉnh Nghệ An,BRANCH,Nghệ An,ch.nghean@vache.org.vn,5000000
+CH-QUANGNINH,Chi hội Chăm sóc Sức khỏe Cộng đồng và Người lao động Tỉnh Quảng Ninh,BRANCH,Quảng Ninh,ch.quangninh@vache.org.vn,5000000
+CH-HUE,Chi hội Dưỡng sinh Y học Dân tộc Tỉnh Thừa Thiên Huế,BRANCH,Thừa Thiên Huế,ch.hue@vache.org.vn,5000000
+CH-CANTHO,Chi hội Giáo dục Sức khỏe Người cao tuổi và Dưỡng sinh Cần Thơ,BRANCH,Cần Thơ,ch.cantho@vache.org.vn,5000000
+CH-KIENGIANG,Chi hội Y tế Thiện nguyện và Chăm sóc Sức khỏe Hải đảo Kiên Giang,BRANCH,Kiên Giang,ch.phuquoc@vache.org.vn,5000000
+CH-LAMDONG,Chi hội Dưỡng sinh Tâm thể và Trị liệu Thiên nhiên Tỉnh Lâm Đồng,BRANCH,Lâm Đồng,ch.lamdong@vache.org.vn,5000000
+CH-PHUTHO,Chi hội Cây thuốc Dân gian và Dưỡng sinh Cổ truyền Tỉnh Phú Thọ,BRANCH,Phú Thọ,ch.phutho@vache.org.vn,5000000
+CH-DAKLAK,Liên Chi hội Giáo dục Chăm sóc Sức khỏe Cộng đồng Huyện Krông Pắc - Đắk Lắk,UNION_BRANCH,Đắk Lắk,lch.krongpac@vache.org.vn,5000000
+CH-KHANHHOA,Chi hội Chăm sóc Sức khỏe Chủ động và Y học Biển Đảo Khánh Hòa,BRANCH,Khánh Hòa,ch.khanhhoa@vache.org.vn,5000000
+CH-DONGNAI,Chi hội Giáo dục Sức khỏe Người lao động và Dưỡng sinh Tỉnh Đồng Nai,BRANCH,Đồng Nai,ch.dongnai@vache.org.vn,5000000
+CH-BINHDUONG,Chi hội Chăm sóc Sức khỏe Thể chất và Phòng ngừa Bệnh nghề nghiệp Bình Dương,BRANCH,Bình Dương,ch.binhduong@vache.org.vn,5000000
+VIEN-ICHC,Viện Nghiên cứu và Đào tạo Chăm sóc Sức khỏe Cộng đồng (ICHC),INSTITUTE,Hà Nội,vien.ichc@vache.org.vn,10000000
+VIEN-NAMDLUOC,Viện Nghiên cứu Phát triển Nấm Dược liệu và Sức khỏe Cộng đồng,INSTITUTE,Hà Nội,viennam@vache.org.vn,10000000
+VIEN-YHCT,Viện Nghiên cứu Ứng dụng Y học Cổ truyền và Dưỡng sinh Việt Nam,INSTITUTE,Hà Nội,vienyhoccotruyen@vache.org.vn,10000000
+TT-DUONGSINH,Trung tâm Tư vấn Dinh dưỡng và Dưỡng sinh Tâm Thể Thủ Đô,CENTER,Hà Nội,tt.duongsinh@vache.org.vn,3000000
+TT-VNHOUSE,Trung tâm Phục hồi Chức năng và Chăm sóc Người cao tuổi VN HOUSE,CENTER,Nghệ An,vnhouse.nghean@vache.org.vn,3000000
+TT-THUCDUONG,Trung tâm Nghiên cứu Dinh dưỡng và Thực dưỡng Sạch TP. Hồ Chí Minh,CENTER,TP. Hồ Chí Minh,thucduong.hcm@vache.org.vn,3000000
+DN-DUOCLIEU,Công ty Cổ phần Chăm sóc Sức khỏe và Dược liệu Việt Nam,ENTERPRISE,Hà Nội,duoclieu@vache.org.vn,3000000
+DN-AOVUA,Công ty Cổ phần Ao Vua - Trung tâm Du lịch Nghỉ dưỡng Sinh thái,CENTER,Hà Nội,aovua@vache.org.vn,2000000
+DN-TAYNGUYEN,Công ty TNHH Bảo tồn Dược liệu Thiên nhiên và Trà thảo mộc Tây Nguyên,ENTERPRISE,Đắk Lắk,duoclieutaynguyen@vache.org.vn,3000000

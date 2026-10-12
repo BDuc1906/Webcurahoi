@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Receipt,
   Wallet,
@@ -8,21 +8,25 @@ import {
   Calendar,
   Filter,
   CheckCircle2,
+  Database,
+  AlertCircle,
 } from "lucide-react";
 import {
   MOCK_DISBURSEMENTS,
   MOCK_CAMPAIGNS,
-  Disbursement,
 } from "@/lib/mock-campaigns-data";
+import { useDisbursements } from "@/hooks/useDisbursements";
 
 export default function DisbursementsSection() {
-  const [disbursements, setDisbursements] =
-    useState<Disbursement[]>(MOCK_DISBURSEMENTS);
+  const campaignSlugs = useMemo(
+    () => MOCK_CAMPAIGNS.map((c) => c.slug),
+    []
+  );
+  const { disbursements, source } = useDisbursements(
+    campaignSlugs,
+    MOCK_DISBURSEMENTS
+  );
   const [campaignFilter, setCampaignFilter] = useState<string>("ALL");
-
-  useEffect(() => {
-    setDisbursements(MOCK_DISBURSEMENTS);
-  }, []);
 
   const filtered = useMemo(() => {
     if (campaignFilter === "ALL") return disbursements;
@@ -56,13 +60,14 @@ export default function DisbursementsSection() {
             </div>
           </div>
 
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-1">
             <span className="text-[11px] text-slate-500 block">
               Tổng đã chi:
             </span>
             <span className="font-mono font-black text-emerald-700 text-lg">
               {new Intl.NumberFormat("vi-VN").format(totalDisbursed)} đ
             </span>
+            <SourceBadge source={source} />
           </div>
         </div>
 
@@ -126,10 +131,7 @@ export default function DisbursementsSection() {
               </tr>
             ) : (
               filtered.map((d) => (
-                <tr
-                  key={d.id}
-                  className="hover:bg-slate-50 transition-colors"
-                >
+                <tr key={d.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap">
                     <span className="inline-flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-400" />
@@ -171,5 +173,20 @@ export default function DisbursementsSection() {
         Văn phòng Trung ương Hội để phục vụ thanh tra, kiểm toán.
       </div>
     </section>
+  );
+}
+
+function SourceBadge({ source }: { source: "api" | "mock" }) {
+  if (source === "api") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-xs">
+        <Database className="w-3 h-3" /> Backend
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-xs">
+      <AlertCircle className="w-3 h-3" /> Mẫu
+    </span>
   );
 }

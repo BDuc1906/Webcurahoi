@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HeartHandshake, CreditCard, QrCode } from "lucide-react";
 import CurrencyInput from "@/components/common/CurrencyInput";
 import type { Purpose } from "@/hooks/usePaymentFlow";
@@ -12,16 +12,31 @@ interface Props {
     payerName: string;
     payerEmail: string;
   }) => void;
+  initialPurpose?: Purpose;
+  initialAmount?: number;
+  initialName?: string;
 }
 
 const DONATION_PRESETS = [100000, 200000, 500000, 1000000, 2000000, 5000000];
 const FEE_PRESETS = [120000, 500000, 1000000, 3000000, 5000000, 15000000];
 
-export default function PaymentFormStep({ onSubmit }: Props) {
-  const [purpose, setPurpose] = useState<Purpose>("DONATION");
-  const [amount, setAmount] = useState<number>(500000);
-  const [donorName, setDonorName] = useState("Nguyễn Văn An");
+export default function PaymentFormStep({
+  onSubmit,
+  initialPurpose,
+  initialAmount,
+  initialName,
+}: Props) {
+  const [purpose, setPurpose] = useState<Purpose>(initialPurpose ?? "DONATION");
+  const [amount, setAmount] = useState<number>(initialAmount ?? 500000);
+  const [donorName, setDonorName] = useState(initialName ?? "Nguyễn Văn An");
   const [email, setEmail] = useState("an.nguyen@example.com");
+
+  // Khi prefill từ Tab 2 truyền xuống → cập nhật lại form
+  useEffect(() => {
+    if (initialPurpose) setPurpose(initialPurpose);
+    if (initialAmount) setAmount(initialAmount);
+    if (initialName) setDonorName(initialName);
+  }, [initialPurpose, initialAmount, initialName]);
 
   const presets = purpose === "DONATION" ? DONATION_PRESETS : FEE_PRESETS;
 
