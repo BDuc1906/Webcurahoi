@@ -1,0 +1,270 @@
+// =============================================================================
+// PHÂN HỆ: QUỸ THIỆN NGUYỆN VÀ PHÍ (Mảng V - Quản trị Tài chính của Hội)
+// Tất cả bảng có tiền tố "fin_" để không đụng bảng của các thành viên khác
+// khi gộp chung một CSDL.
+// Số tiền lưu bằng BigInt (đơn vị: đồng VND).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Neon - pooled connection
+  directUrl = env("DIRECT_URL") // Neon - direct connection (dùng cho migrate)
+}
+
+// ----------------------------- ENUMS -----------------------------------------
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum PaymentPurpose {
+  CHARITY_DONATION // Đóng góp thiện nguyện
+  ANNUAL_MEMBERSHIP_FEE // Hội phí niên liễm
+  ESTABLISHMENT_FEE // Phí thành lập / công nhận đơn vị
+}
+
+enum PayerType {
+  INDIVIDUAL
+  ORGANIZATION
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  VIETQR
+  BANK_TRANSFER
+  CASH
+}
+
+enum ObligationStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  WAIVED
+}
+
+enum FeeTargetGroup {
+  ORGANIZATION
+  INDIVIDUAL
+}
+
+enum FeeUnitType {
+  BRANCH // Chi hội
+  UNION_BRANCH // Liên chi hội
+  INSTITUTE // Viện
+  CENTER // Trung tâm
+  SPECIALIZED_BOARD // Ban chuyên môn
+  REP_OFFICE // Văn phòng đại diện
+  ENTERPRISE // Doanh nghiệp hội viên
+}
+
+enum WebhookResult {
+  MATCHED
+  NO_MATCH
+  AMOUNT_MISMATCH
+  DUPLICATE
+  IGNORED
+}
+
+// ----------------------------- TRỤ CỘT 3: THIỆN NGUYỆN -----------------------
+
+model Campaign {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  name          String
+  description   String?
+  targetAmount  BigInt
+  status        CampaignStatus @default(ACTIVE)
+  startDate     DateTime?
+  endDate       DateTime?
+  coverImageUrl String?
+  sortOrder     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  transactions  PaymentTransaction[]
+  disbursements Disbursement[]
+
+  @@map("fin_campaigns")
+}
+
+// Báo cáo chi / giải ngân thực tế của từng chiến dịch
+model Disbursement {
+  id             String   @id @default(cuid())
+  campaignId     String
+  disbursedAt    DateTime
+  item           String // Hạng mục chi
+  amount         BigInt
+  beneficiary    String // Đơn vị / bệnh viện thụ hưởng
+  description    String?
+  photoUrls      String[] // Ảnh hoạt động trao tặng
+  minutesFileUrl String? // Biên bản nghiệm thu
+  createdAt      DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, disbursedAt])
+  @@map("fin_disbursements")
+}
+
+// ----------------------------- TRỤ CỘT 1 & 2: PHÍ, HỘI PHÍ -------------------
+
+// Biểu mức phí / hội phí do Hội quy định
+model FeeSchedule {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  name          String
+  category      PaymentPurpose // ANNUAL_MEMBERSHIP_FEE hoặc ESTABLISHMENT_FEE
+  targetGroup   FeeTargetGroup?
+  minAmount     BigInt? // null = chưa quy định mức
+  maxAmount     BigInt?
+  note          String?
+  effectiveFrom DateTime?
+  active        Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("fin_fee_schedules")
+}
+
+// Kho văn bản pháp quy về tài chính (quy chế, nghị quyết, hướng dẫn)
+model FinanceDocument {
+  id         String    @id @default(cuid())
+  code       String?
+  title      String
+  docType    String? // QUY_CHE | NGHI_QUYET | HUONG_DAN ...
+  issuedDate DateTime?
+  fileUrl    String?
+  isPublic   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  @@map("fin_documents")
+}
+
+// Đơn vị phải nộp hội phí (Chi hội, Viện, Doanh nghiệp...).
+// externalOrgId: để nối với bảng Organization của thành viên làm mảng Tổ chức sau này.
+model FeeUnit {
+  id            String      @id @default(cuid())
+  code          String      @unique // VD: CH-DANANG, VIEN-YSH01, DN-AOVUA
+  name          String
+  unitType      FeeUnitType
+  province      String?
+  contactEmail  String?
+  annualFee     BigInt? // Mức niên liễm hằng năm
+  externalOrgId String?     @unique
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  obligations  FeeObligation[]
+  transactions PaymentTransaction[]
+  certificates Certificate[]
+
+  @@map("fin_fee_units")
+}
+
+// Nghĩa vụ hội phí của một đơn vị theo từng năm
+model FeeObligation {
+  id         String           @id @default(cuid())
+  unitId     String
+  year       Int
+  amountDue  BigInt
+  amountPaid BigInt           @default(0)
+  status     ObligationStatus @default(UNPAID)
+  dueDate    DateTime
+  paidAt     DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  unit         FeeUnit              @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
+  certificate  Certificate?
+
+  @@unique([unitId, year])
+  @@map("fin_fee_obligations")
+}
+
+// Giấy chứng nhận hoàn thành nghĩa vụ hội viên (có mã xác thực QR)
+model Certificate {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  verifyCode   String   @unique
+  unitId       String
+  year         Int
+  obligationId String   @unique
+  issuedAt     DateTime @default(now())
+  issuedBy     String?
+
+  unit       FeeUnit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  obligation FeeObligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+
+  @@unique([unitId, year])
+  @@map("fin_certificates")
+}
+
+// ----------------------------- TRỤ CỘT 4: GIAO DỊCH --------------------------
+
+model PaymentTransaction {
+  id               String         @id @default(cuid())
+  code             String         @unique // VD: VACHE-TN-883920
+  purpose          PaymentPurpose
+  payerType        PayerType      @default(INDIVIDUAL)
+  payerName        String
+  payerEmail       String?
+  payerPhone       String?
+  isAnonymous      Boolean        @default(false)
+  amount           BigInt
+  status           PaymentStatus  @default(PENDING)
+  method           PaymentMethod  @default(VIETQR)
+  note             String?
+  expiresAt        DateTime
+  completedAt      DateTime?
+  bankRef          String?        @unique // Mã tham chiếu của ngân hàng (chống ghi trùng)
+  bankGateway      String? // Ngân hàng ghi nhận
+  accountMasked    String?
+  verified         Boolean        @default(false) // Đã khớp đối soát ngân hàng
+  receiptEmailSentAt DateTime?
+  createdAt        DateTime       @default(now())
+
+  campaignId   String?
+  unitId       String?
+  obligationId String?
+
+  campaign   Campaign?      @relation(fields: [campaignId], references: [id])
+  unit       FeeUnit?       @relation(fields: [unitId], references: [id])
+  obligation FeeObligation? @relation(fields: [obligationId], references: [id])
+
+  @@index([status, completedAt])
+  @@index([campaignId, status])
+  @@index([unitId, status])
+  @@index([purpose, status])
+  @@map("fin_transactions")
+}
+
+// Nhật ký mọi webhook ngân hàng gửi về (phục vụ đối soát và chống trùng)
+model WebhookLog {
+  id              String        @id @default(cuid())
+  provider        String
+  externalId      String?
+  payload         Json
+  result          WebhookResult
+  transactionCode String?
+  note            String?
+  receivedAt      DateTime      @default(now())
+
+  @@unique([provider, externalId])
+  @@index([receivedAt])
+  @@map("fin_webhook_logs")
+}
