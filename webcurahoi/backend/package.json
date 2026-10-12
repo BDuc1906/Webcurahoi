@@ -4,10 +4,11 @@
   "private": true,
   "description": "Backend phân hệ Quỹ thiện nguyện và Phí - Hội GDCSSKCĐ VN (VACHE)",
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "dev": "nest start --watch",
     "start": "nest start",
     "start:prod": "node dist/main.js",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",

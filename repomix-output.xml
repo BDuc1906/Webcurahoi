@@ -40,6 +40,10 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
+.github/
+  workflows/
+    cd.yml
+    ci.yml
 webcurahoi/
   app/
     admin/
@@ -138,6 +142,7 @@ webcurahoi/
         prisma.service.ts
       app.module.ts
       main.ts
+    .env.backup-20261012-151318
     .env.example
     .gitignore
     nest-cli.json
@@ -223,10 +228,196 @@ webcurahoi/
   postcss.config.mjs
   tailwind.config.ts
   tsconfig.json
+Readme.md
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path=".github/workflows/cd.yml">
+name: CD — Deploy Production
+
+on:
+  push:
+    branches: [main]
+  # Cho phép bấm chạy tay từ tab Actions
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================
+  # JOB 1: Trigger deploy Vercel (Frontend)
+  # ============================================================
+  deploy-frontend:
+    name: Frontend → Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Vercel Deploy Hook
+        run: |
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
+            echo "⚠️ Chưa cấu hình VERCEL_DEPLOY_HOOK"
+            echo "Vercel sẽ tự deploy qua Git Integration (không cần webhook)"
+            exit 0
+          fi
+          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"main"}'
+          echo "✅ Đã trigger Vercel deploy"
+
+      - name: Thông báo
+        run: |
+          echo "### 🎨 Frontend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 https://webcurahoi.vercel.app" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # JOB 2: Trigger deploy Railway (Backend)
+  # ============================================================
+  deploy-backend:
+    name: Backend → Railway
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Railway Deploy Hook
+        run: |
+          if [ -z "${{ secrets.RAILWAY_DEPLOY_HOOK }}" ]; then
+            echo "⚠️ Chưa cấu hình RAILWAY_DEPLOY_HOOK"
+            echo "Railway sẽ tự deploy qua Git Integration (không cần webhook)"
+            exit 0
+          fi
+          curl -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json"
+          echo "✅ Đã trigger Railway deploy"
+
+      - name: Thông báo
+        run: |
+          echo "### ⚙️ Backend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 Railway dashboard: https://railway.app/dashboard" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # JOB 3: Tổng kết sau khi cả 2 deploy xong
+  # ============================================================
+  summary:
+    name: Tổng kết
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend]
+
+    steps:
+      - name: In tổng kết
+        run: |
+          echo "### ✅ Deploy hoàn tất" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Thành phần | Nền tảng | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|----------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | Vercel | https://webcurahoi.vercel.app |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | Railway | (Kiểm tra dashboard) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tác giả:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+</file>
+
+<file path=".github/workflows/ci.yml">
+name: CI — Kiểm tra chất lượng code
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # FRONTEND — Next.js
+  # ============================================================
+  frontend:
+    name: Frontend — Type check + Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./webcurahoi
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: webcurahoi/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Lint (Next.js ESLint)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api
+          ADMIN_API_KEY: dummy-key-for-build-only
+
+  # ============================================================
+  # BACKEND — NestJS
+  # ============================================================
+  backend:
+    name: Backend — Type check + Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./webcurahoi/backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: webcurahoi/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Build NestJS
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          ADMIN_API_KEY: dummy-admin-key-1234567890
+          WEBHOOK_API_KEY: dummy-webhook-key-1234567890
+          BANK_ACCOUNT_NO: "190820088888"
+          BANK_ACCOUNT_NAME: "TRUNG UONG HOI GDCSSKCD VN"
+</file>
 
 <file path="webcurahoi/app/admin/bao-cao/page.tsx">
 "use client";
@@ -9008,287 +9199,6 @@ export default function StatementSearchBar({
 }
 </file>
 
-<file path="webcurahoi/components/finance/FeeScheduleTab.tsx">
-"use client";
-
-import React, { useEffect, useState, useMemo } from "react";
-import {
-  FileText,
-  Download,
-  Search,
-  Filter,
-  AlertCircle,
-  Building2,
-  User,
-  Receipt,
-} from "lucide-react";
-import { MOCK_DOCUMENTS } from "@/lib/mock-data";
-import { financeApi, FeeScheduleItem } from "@/lib/api-client";
-
-const FALLBACK_SCHEDULES: FeeScheduleItem[] = [
-  {
-    code: "HP-TAPTHE",
-    name: "Hội phí hội viên tập thể / đơn vị pháp nhân",
-    category: "ANNUAL_MEMBERSHIP_FEE",
-    targetGroup: "ORGANIZATION",
-    minAmount: 2000000,
-    maxAmount: 5000000,
-    note: "Doanh nghiệp, bệnh viện, viện nghiên cứu, phòng khám thành viên. Mức thu tùy quy mô.",
-  },
-  {
-    code: "HP-CANHAN",
-    name: "Hội phí hội viên cá nhân",
-    category: "ANNUAL_MEMBERSHIP_FEE",
-    targetGroup: "INDIVIDUAL",
-    minAmount: 200000,
-    maxAmount: 500000,
-    note: "Bác sĩ, dược sĩ, y sĩ, lương y, cán bộ y tế cộng đồng. Miễn giảm cho sinh viên y khoa, hội viên cao tuổi, hoàn cảnh khó khăn.",
-  },
-  {
-    code: "TL-VIEN-TT",
-    name: "Phí thẩm định, cấp quyết định thành lập Viện, Trung tâm",
-    category: "ESTABLISHMENT_FEE",
-    minAmount: null,
-    maxAmount: null,
-    note: "Cập nhật theo quyết định của Trung ương Hội.",
-  },
-  {
-    code: "TL-CHIHOI",
-    name: "Phí thành lập Liên Chi hội, Chi hội, Ban chuyên môn",
-    category: "ESTABLISHMENT_FEE",
-    minAmount: null,
-    maxAmount: null,
-    note: "Cập nhật theo quyết định của Trung ương Hội.",
-  },
-  {
-    code: "TL-DONVI-VPDD",
-    name: "Phí thẩm định hồ sơ đơn vị thành viên, văn phòng đại diện",
-    category: "ESTABLISHMENT_FEE",
-    minAmount: null,
-    maxAmount: null,
-    note: "Cập nhật theo quyết định của Trung ương Hội.",
-  },
-];
-
-function formatVnd(n: number | null): string {
-  if (n == null) return "Theo QĐ Trung ương Hội";
-  return new Intl.NumberFormat("vi-VN").format(n) + " đ";
-}
-
-function formatRange(min: number | null, max: number | null): string {
-  if (min == null && max == null) return "Đang cập nhật";
-  if (min != null && max != null && min !== max) {
-    return `${formatVnd(min)} – ${formatVnd(max)}`;
-  }
-  return formatVnd(min ?? max);
-}
-
-export default function FeeScheduleTab() {
-  const [schedules, setSchedules] = useState<FeeScheduleItem[]>(FALLBACK_SCHEDULES);
-  const [documents, setDocuments] = useState<any[]>(MOCK_DOCUMENTS);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<
-    "ALL" | "ANNUAL_MEMBERSHIP_FEE" | "ESTABLISHMENT_FEE"
-  >("ALL");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [s, d] = await Promise.all([
-        financeApi.feeSchedules(),
-        financeApi.documents(),
-      ]);
-      if (!cancelled && s && s.length > 0) setSchedules(s);
-      if (!cancelled && d && d.length > 0) {
-        setDocuments(
-          d.map((x) => ({
-            id: x.id,
-            code: x.code ?? "",
-            title: x.title,
-            documentType: x.docType ?? "REGULATION",
-            issuedDate: x.issuedDate ?? "",
-            fileUrl: x.fileUrl ?? "#",
-          }))
-        );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const filteredSchedules = useMemo(() => {
-    return schedules.filter((s) => {
-      const matchCat = categoryFilter === "ALL" || s.category === categoryFilter;
-      const q = searchTerm.trim().toLowerCase();
-      const matchSearch =
-        q === "" ||
-        s.name.toLowerCase().includes(q) ||
-        s.code.toLowerCase().includes(q);
-      return matchCat && matchSearch;
-    });
-  }, [schedules, categoryFilter, searchTerm]);
-
-  return (
-    <div className="space-y-12">
-      {/* 1. BIỂU MỨC PHÍ */}
-      <section className="space-y-4">
-        <div className="border-b-2 border-[#991b1b] pb-2 flex flex-col sm:flex-row justify-between sm:items-end gap-2">
-          <div>
-            <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
-              Trụ Cột 1 — Đáp ứng Mục 1 Nghiệp Vụ Mảng V
-            </span>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
-              BIỂU MỨC PHÍ THÀNH LẬP & HỘI PHÍ NIÊN LIỄM
-            </h2>
-          </div>
-          <span className="text-xs text-slate-500">Nhiệm kỳ 2021 – 2026</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white p-3 rounded-xs border border-slate-300 text-xs">
-          <div className="relative w-full sm:w-80">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm theo tên hoặc mã biểu phí..."
-              className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xs focus:outline-none focus:ring-1 focus:ring-red-600"
-            />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as any)}
-              className="border border-slate-300 rounded-xs px-3 py-2 bg-white text-slate-700 focus:outline-none"
-            >
-              <option value="ALL">Tất cả loại phí</option>
-              <option value="ANNUAL_MEMBERSHIP_FEE">Hội phí niên liễm</option>
-              <option value="ESTABLISHMENT_FEE">Phí thành lập đơn vị</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto border border-slate-300 rounded-xs bg-white">
-          <table className="w-full text-left text-xs min-w-[720px]">
-            <thead className="bg-[#f8fafc] text-slate-800 font-bold border-b border-slate-300 uppercase text-[10.5px] tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3 w-32">Mã</th>
-                <th className="py-2.5 px-3">Tên loại phí / hội phí</th>
-                <th className="py-2.5 px-3 w-40">Đối tượng</th>
-                <th className="py-2.5 px-3 w-60 text-right">Định mức</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredSchedules.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-500">
-                    Không có biểu phí nào phù hợp bộ lọc.
-                  </td>
-                </tr>
-              )}
-              {filteredSchedules.map((s) => (
-                <tr key={s.code} className="hover:bg-slate-50">
-                  <td className="py-3 px-3 font-mono font-bold text-[#991b1b] whitespace-nowrap">
-                    {s.code}
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-slate-900 font-serif">
-                      {s.name}
-                    </div>
-                    {s.note && (
-                      <div className="text-[11px] text-slate-500 italic mt-0.5 leading-snug">
-                        {s.note}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 whitespace-nowrap">
-                    {s.targetGroup === "ORGANIZATION" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                        <Building2 className="w-3 h-3" /> Tập thể
-                      </span>
-                    ) : s.targetGroup === "INDIVIDUAL" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <User className="w-3 h-3" /> Cá nhân
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                    {s.category === "ESTABLISHMENT_FEE"
-                      ? formatVnd(s.minAmount ?? s.maxAmount)
-                      : formatRange(s.minAmount, s.maxAmount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="bg-amber-50 border border-amber-300 rounded-xs p-3 text-[11px] text-amber-900 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-          <span>
-            Mức thu nêu trên được quy định tại Nghị quyết Ban Chấp hành Trung ương Hội
-            nhiệm kỳ 2021 – 2026. Chính sách miễn giảm áp dụng cho sinh viên y khoa,
-            hội viên cao tuổi và hoàn cảnh đặc biệt khó khăn.
-          </span>
-        </div>
-      </section>
-
-      {/* 2. KHO VĂN BẢN */}
-      <section className="space-y-4">
-        <div className="border-b-2 border-slate-800 pb-2">
-          <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
-            Kho Văn Bản Pháp Quy Chính Thức
-          </span>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
-            QUY CHẾ & NGHỊ QUYẾT VỀ QUẢN LÝ TÀI CHÍNH
-          </h2>
-        </div>
-
-        <div className="space-y-3">
-          {documents.map((doc) => (
-            <div
-              key={doc.id}
-              className="p-4 bg-white rounded-xs border border-slate-300 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:border-red-400 transition-colors"
-            >
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xs bg-red-50 border border-red-200 text-[#991b1b] flex items-center justify-center shrink-0">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  {doc.code && (
-                    <span className="font-mono text-[11px] font-bold text-[#991b1b] block">
-                      Số: {doc.code}
-                    </span>
-                  )}
-                  <h4 className="font-bold text-sm text-slate-900 font-serif leading-snug">
-                    {doc.title}
-                  </h4>
-                  {doc.issuedDate && (
-                    <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                      Ngày ban hành: {doc.issuedDate}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <a
-                href={doc.fileUrl || "#"}
-                className="shrink-0 self-start sm:self-auto px-3 py-1.5 bg-[#991b1b] hover:bg-red-800 text-white rounded-xs font-bold text-xs flex items-center gap-1.5 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" /> Tải PDF
-              </a>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-</file>
-
 <file path="webcurahoi/components/home/CharityAndFeeSection.tsx">
 "use client";
 
@@ -10892,49 +10802,6 @@ export default function PublicFooter() {
 }
 </file>
 
-<file path="webcurahoi/hooks/useCampaigns.ts">
-"use client";
-
-import { useEffect, useState } from "react";
-import { financeApi } from "@/lib/api-client";
-import { mapCampaign } from "@/lib/api-mappers";
-import { Campaign } from "@/lib/mock-campaigns-data";
-
-interface Result {
-  campaigns: Campaign[];
-  loading: boolean;
-  source: "api" | "mock";
-}
-
-export function useCampaigns(fallback: Campaign[]): Result {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(fallback);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"api" | "mock">("mock");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const data = await financeApi.campaigns();
-      if (cancelled) return;
-      if (Array.isArray(data) && data.length > 0) {
-        setCampaigns(data.map(mapCampaign));
-        setSource("api");
-      } else {
-        setCampaigns(fallback);
-        setSource("mock");
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return { campaigns, loading, source };
-}
-</file>
-
 <file path="webcurahoi/hooks/useCountdown.ts">
 "use client";
 
@@ -10995,123 +10862,6 @@ export function formatMmSs(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-</file>
-
-<file path="webcurahoi/hooks/useDisbursements.ts">
-"use client";
-
-import { useEffect, useState } from "react";
-import { mapDisbursement } from "@/lib/api-mappers";
-import { Disbursement } from "@/lib/mock-campaigns-data";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
-
-async function fetchJson(path: string) {
-  try {
-    const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-interface Result {
-  disbursements: Disbursement[];
-  loading: boolean;
-  source: "api" | "mock";
-}
-
-export function useDisbursements(
-  campaignSlugs: string[],
-  fallback: Disbursement[]
-): Result {
-  const [disbursements, setDisbursements] = useState<Disbursement[]>(fallback);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"api" | "mock">("mock");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const all: Disbursement[] = [];
-      for (const slug of campaignSlugs) {
-        const data = await fetchJson(
-          `/finance/campaigns/${slug}/disbursements`
-        );
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach((d: any) => all.push(mapDisbursement(d, slug)));
-        }
-      }
-      if (cancelled) return;
-      if (all.length > 0) {
-        all.sort((a, b) =>
-          (b.disbursedAt || "").localeCompare(a.disbursedAt || "")
-        );
-        setDisbursements(all);
-        setSource("api");
-      } else {
-        setDisbursements(fallback);
-        setSource("mock");
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignSlugs.join(",")]);
-
-  return { disbursements, loading, source };
-}
-</file>
-
-<file path="webcurahoi/hooks/useHonorRoll.ts">
-"use client";
-
-import { useEffect, useState } from "react";
-import { financeApi } from "@/lib/api-client";
-import { mapHonorRoll } from "@/lib/api-mappers";
-import { HonorRollEntry } from "@/lib/mock-campaigns-data";
-
-type Period = "quarter" | "year";
-
-interface Result {
-  entries: HonorRollEntry[];
-  loading: boolean;
-  source: "api" | "mock";
-}
-
-export function useHonorRoll(
-  period: Period,
-  fallback: HonorRollEntry[]
-): Result {
-  const [entries, setEntries] = useState<HonorRollEntry[]>(fallback);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"api" | "mock">("mock");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const data = await financeApi.honorRoll(period);
-      if (cancelled) return;
-      if (Array.isArray(data) && data.length > 0) {
-        setEntries(data.map(mapHonorRoll));
-        setSource("api");
-      } else {
-        setEntries(fallback);
-        setSource("mock");
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
-
-  return { entries, loading, source };
 }
 </file>
 
@@ -18074,6 +17824,121 @@ export default {
 } satisfies Config;
 </file>
 
+<file path="Readme.md">
+<!-- ============================================================
+     BANNER & BADGES
+     ============================================================ -->
+
+<div align="center">
+
+# 🏛️ Cổng Thông Tin & Hệ Thống Quản Trị Điều Hành Số Hóa
+### Hội Giáo dục Chăm sóc Sức khỏe Cộng đồng Việt Nam (VACHE)
+
+*Nền tảng số hóa toàn diện công tác quản trị tổ chức, nhân sự, tài chính và truyền thông của Trung ương Hội.*
+
+[![Next.js](https://img.shields.io/badge/Next.js-15.1.7-black?logo=next.js&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com)
+[![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)](https://neon.tech)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+
+[![CI](https://img.shields.io/badge/CI-passing-success?logo=githubactions&logoColor=white)](https://github.com/BDuc1906/Webcurahoi/actions)
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel&logoColor=white)](https://webcurahoi.vercel.app)
+[![Railway](https://img.shields.io/badge/Deploy-Railway-0B0D0E?logo=railway&logoColor=white)](https://railway.app)
+[![License](https://img.shields.io/badge/License-Internal-red.svg)]()
+
+[Demo trực tuyến](https://webcurahoi.vercel.app) · [Báo lỗi](https://github.com/BDuc1906/Webcurahoi/issues) · [Đề xuất tính năng](https://github.com/BDuc1906/Webcurahoi/issues)
+
+</div>
+
+---
+
+## 📖 Mục lục
+
+- [Giới thiệu](#-giới-thiệu)
+- [Tính năng chính](#-tính-năng-chính)
+- [Kiến trúc hệ thống](#-kiến-trúc-hệ-thống)
+- [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
+- [Cài đặt & Chạy Local](#-cài-đặt--chạy-local)
+- [Biến môi trường](#-biến-môi-trường)
+- [Cấu trúc thư mục](#-cấu-trúc-thư-mục)
+- [API Documentation](#-api-documentation)
+- [Triển khai Production](#-triển-khai-production)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Đóng góp](#-đóng-góp)
+- [Giấy phép](#-giấy-phép)
+- [Liên hệ](#-liên-hệ)
+
+---
+
+## 🌟 Giới thiệu
+
+**Webcurahoi** là hệ thống thông tin tích hợp được xây dựng cho **Trung ương Hội Giáo dục Chăm sóc Sức khỏe Cộng đồng Việt Nam (VACHE)** — một tổ chức xã hội - nghề nghiệp hoạt động trên phạm vi cả nước theo Quyết định số 128/QĐ-BNV của Bộ Nội vụ.
+
+Hệ thống bao phủ **5 mảng nội dung nghiệp vụ** theo đặc tả chính thức:
+
+| # | Mảng nghiệp vụ | Mô tả |
+|---|----------------|-------|
+| **I** | 📚 **Thông tin chung về Hội** | Giới thiệu, Ban Lãnh đạo, Kho văn bản pháp quy |
+| **II** | 📰 **Tin tức & Sự kiện** | Bản tin thời sự, hoạt động 63 tỉnh thành |
+| **III** | 🏢 **Quản trị Tổ chức** | Chi hội, Liên Chi hội, Viện, Trung tâm, Doanh nghiệp |
+| **IV** | 👥 **Quản trị Nhân sự** | Ban Chấp hành, Ban Thường vụ, kết nạp Hội viên |
+| **V** | 💰 **Quản trị Tài chính** | Biểu phí, hội phí trực tuyến, Quỹ thiện nguyện |
+
+> **Điểm nổi bật:** Tích hợp **cổng thanh toán VietQR Napas 24/7** tự động, **sao kê tài chính công khai thời gian thực**, tuân thủ Nghị định 93/2019/NĐ-CP và Thông tư 41/2022/TT-BTC.
+
+---
+
+## ✨ Tính năng chính
+
+### 🎨 Giao diện Công vụ (Public Portal)
+- **Trang chủ** với slider tin tức, dòng thời sự 24/7, ticker thông báo chỉ đạo
+- **Menu đa cấp** theo phong cách Cổng thông tin điện tử Chính phủ
+- **Tối ưu SEO** với metadata động, Open Graph
+- **Responsive** hoàn hảo trên mobile, tablet, desktop
+- **Chuẩn typography** Nghị định 30/2020/NĐ-CP (phông serif cho tiêu đề, sans-serif cho nội dung)
+
+### 📰 Truyền thông & Tin tức
+- 100+ bài viết mẫu trải đều 5 chuyên mục
+- Phân trang, tìm kiếm, lọc theo danh mục
+- Xem chi tiết bài viết với chia sẻ link
+- Lịch công tác tuần của Ban Thường trực
+
+### 🏛️ Quản trị Tổ chức
+- **Danh bạ 34+ đơn vị** trực thuộc (Cơ quan TW, VP Đại diện, Chi hội, Viện, Trung tâm)
+- **Sơ đồ cây phân cấp** trực quan hóa bộ máy
+- **3 chế độ hiển thị**: Dạng hàng, Dạng bảng, Sơ đồ cây
+- **Modal hồ sơ chi tiết** với thông tin pháp lý đầy đủ
+
+### 👥 Quản trị Nhân sự
+- **Danh sách Ban Chấp hành** + Ban Thường vụ nhiệm kỳ IV
+- **Hồ sơ nhân sự** với học hàm, học vị, chức vụ
+- **Tờ khai Đăng ký Hội viên trực tuyến** theo Mẫu 01A/01B (chuẩn công vụ)
+
+### 💰 Quản trị Tài chính (Điểm nhấn)
+- **Cổng tra cứu hội phí** theo mã đơn vị (VD: `CH-DANANG`)
+- **VietQR động** — số tiền gắn cứng, chống chuyển sai
+- **Đếm ngược 10 phút** + radar quét chờ thanh toán
+- **Auto-detect giao dịch** qua webhook ngân hàng (SePay/Casso)
+- **Biên lai điện tử** + gửi email tự động
+- **Sao kê công khai** real-time qua SSE
+- **Báo cáo giải ngân** minh bạch 2 chiều
+- **Bảng vàng** vinh danh nhà hảo tâm
+- **Giấy chứng nhận điện tử** với QR xác thực
+
+### 🔐 Cổng Quản trị (Admin)
+- Dashboard với KPI thời gian thực
+- Quản lý tổ chức, nhân sự, báo cáo, tài chính
+- **Import CSV** hàng loạt đơn vị vào CSDL
+- Xuất sổ kế toán Excel
+
+---
+
+## 🏗️ Kiến trúc hệ thống
+</file>
+
 <file path="webcurahoi/app/admin/hoi-phi/page.tsx">
 "use client";
 
@@ -20139,559 +20004,6 @@ export class PaymentsController {
 }
 </file>
 
-<file path="webcurahoi/components/finance/campaign/CampaignCards.tsx">
-"use client";
-
-import React from "react";
-import {
-  Target,
-  TrendingUp,
-  Users,
-  ArrowRight,
-  HeartHandshake,
-  Database,
-  AlertCircle,
-} from "lucide-react";
-import { MOCK_CAMPAIGNS, Campaign } from "@/lib/mock-campaigns-data";
-import { useCampaigns } from "@/hooks/useCampaigns";
-
-export default function CampaignCards() {
-  const { campaigns, source } = useCampaigns(MOCK_CAMPAIGNS);
-
-  return (
-    <section className="space-y-4">
-      <div className="border-b-2 border-[#991b1b] pb-2 flex flex-col sm:flex-row justify-between sm:items-end gap-2">
-        <div>
-          <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
-            Trụ Cột 3 — Chiến Dịch Thiện Nguyện Y Tế Trọng Điểm
-          </span>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
-            CÁC QUỸ ĐANG VẬN ĐỘNG & TIẾN ĐỘ QUYÊN GÓP
-          </h2>
-        </div>
-        <SourceBadge source={source} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {campaigns.map((c) => (
-          <CampaignCard key={c.slug} campaign={c} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SourceBadge({ source }: { source: "api" | "mock" }) {
-  if (source === "api") {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-xs">
-        <Database className="w-3 h-3" /> Dữ liệu thật từ Backend
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-xs">
-      <AlertCircle className="w-3 h-3" /> Dữ liệu mẫu (Backend trống)
-    </span>
-  );
-}
-
-function CampaignCard({ campaign }: { campaign: Campaign }) {
-  const {
-    name,
-    description,
-    targetAmount,
-    raisedAmount,
-    donationCount,
-    disbursedAmount,
-    progressPercent,
-    status,
-  } = campaign;
-
-  const isActive = status === "ACTIVE";
-
-  return (
-    <article className="bg-white border border-slate-300 rounded-xs shadow-2xs hover:border-[#991b1b] hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
-      <div className="p-5 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-xs border ${
-              isActive
-                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                : "bg-slate-100 text-slate-700 border-slate-300"
-            }`}
-          >
-            {isActive ? "Đang vận động" : "Đã kết thúc"}
-          </span>
-          <span className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
-            <Users className="w-3 h-3" /> {donationCount} lượt
-          </span>
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-start gap-2">
-            <HeartHandshake className="w-4 h-4 text-[#991b1b] shrink-0 mt-0.5" />
-            <h3 className="font-bold text-sm text-slate-900 font-serif leading-snug">
-              {name}
-            </h3>
-          </div>
-          <p className="text-[11px] text-slate-600 leading-snug line-clamp-3">
-            {description}
-          </p>
-        </div>
-
-        <div className="bg-slate-50 border border-slate-200 rounded-xs p-3 space-y-2">
-          <div className="flex justify-between text-[11px] font-mono">
-            <span className="text-slate-500 flex items-center gap-1">
-              <Target className="w-3 h-3" /> Mục tiêu:
-            </span>
-            <strong className="text-slate-800">
-              {new Intl.NumberFormat("vi-VN").format(targetAmount)} đ
-            </strong>
-          </div>
-
-          <div className="flex justify-between text-[11px] font-mono">
-            <span className="text-slate-500 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-[#991b1b]" /> Đã vận động:
-            </span>
-            <strong className="text-[#991b1b]">
-              {new Intl.NumberFormat("vi-VN").format(raisedAmount)} đ
-            </strong>
-          </div>
-
-          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-amber-500 to-[#991b1b] h-full transition-all"
-              style={{ width: `${Math.min(progressPercent, 100)}%` }}
-            />
-          </div>
-
-          <div className="flex justify-between text-[10px] text-slate-500">
-            <span>Tiến độ đạt {progressPercent}%</span>
-            <span className="font-mono">
-              Đã chi: {new Intl.NumberFormat("vi-VN").format(disbursedAmount)} đ
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-5 py-3 border-t border-slate-100 flex justify-between items-center text-xs">
-        <a
-          href="#cong-chuyen-khoan"
-          className="text-[#991b1b] font-bold hover:underline flex items-center gap-1"
-        >
-          Ủng hộ chiến dịch <ArrowRight className="w-3.5 h-3.5" />
-        </a>
-        <span className="text-[10px] text-slate-400 font-mono uppercase">
-          VACHE
-        </span>
-      </div>
-    </article>
-  );
-}
-</file>
-
-<file path="webcurahoi/components/finance/campaign/DisbursementsSection.tsx">
-"use client";
-
-import React, { useMemo, useState } from "react";
-import {
-  Receipt,
-  Wallet,
-  Building2,
-  Calendar,
-  Filter,
-  CheckCircle2,
-  Database,
-  AlertCircle,
-} from "lucide-react";
-import {
-  MOCK_DISBURSEMENTS,
-  MOCK_CAMPAIGNS,
-} from "@/lib/mock-campaigns-data";
-import { useDisbursements } from "@/hooks/useDisbursements";
-
-export default function DisbursementsSection() {
-  const campaignSlugs = useMemo(
-    () => MOCK_CAMPAIGNS.map((c) => c.slug),
-    []
-  );
-  const { disbursements, source } = useDisbursements(
-    campaignSlugs,
-    MOCK_DISBURSEMENTS
-  );
-  const [campaignFilter, setCampaignFilter] = useState<string>("ALL");
-
-  const filtered = useMemo(() => {
-    if (campaignFilter === "ALL") return disbursements;
-    return disbursements.filter((d) => d.campaignSlug === campaignFilter);
-  }, [disbursements, campaignFilter]);
-
-  const totalDisbursed = useMemo(
-    () => filtered.reduce((acc, d) => acc + d.amount, 0),
-    [filtered]
-  );
-
-  return (
-    <section className="bg-white border border-slate-300 rounded-xs shadow-2xs overflow-hidden">
-      <div className="p-5 border-b border-slate-200 bg-slate-50">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xs bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
-                Minh Bạch Hai Chiều — Báo Cáo Chi Tiền
-              </span>
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-serif">
-                BÁO CÁO GIẢI NGÂN THỰC TẾ
-              </h2>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Công khai mọi khoản chi tiền cứu trợ y tế tới đúng đối tượng thụ
-                hưởng
-              </p>
-            </div>
-          </div>
-
-          <div className="text-right flex flex-col items-end gap-1">
-            <span className="text-[11px] text-slate-500 block">
-              Tổng đã chi:
-            </span>
-            <span className="font-mono font-black text-emerald-700 text-lg">
-              {new Intl.NumberFormat("vi-VN").format(totalDisbursed)} đ
-            </span>
-            <SourceBadge source={source} />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-200">
-          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="text-[11px] font-bold text-slate-700">
-            Lọc theo chiến dịch:
-          </span>
-          <button
-            onClick={() => setCampaignFilter("ALL")}
-            className={`px-2.5 py-1 rounded-xs text-[11px] font-bold border transition-colors cursor-pointer ${
-              campaignFilter === "ALL"
-                ? "bg-emerald-700 text-white border-emerald-700"
-                : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-            }`}
-          >
-            Tất cả ({disbursements.length})
-          </button>
-          {MOCK_CAMPAIGNS.map((c) => {
-            const count = disbursements.filter(
-              (d) => d.campaignSlug === c.slug
-            ).length;
-            return (
-              <button
-                key={c.slug}
-                onClick={() => setCampaignFilter(c.slug)}
-                className={`px-2.5 py-1 rounded-xs text-[11px] font-bold border transition-colors cursor-pointer truncate max-w-[220px] ${
-                  campaignFilter === c.slug
-                    ? "bg-emerald-700 text-white border-emerald-700"
-                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                }`}
-                title={c.name}
-              >
-                {c.name.split("—")[0].trim()} ({count})
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs font-gov min-w-[720px]">
-          <thead className="bg-[#f8fafc] text-slate-800 font-bold border-b border-slate-300 uppercase text-[10.5px] tracking-wider">
-            <tr>
-              <th className="py-2.5 px-3 w-32 text-center">Ngày chi</th>
-              <th className="py-2.5 px-3 min-w-[220px]">Hạng mục chi</th>
-              <th className="py-2.5 px-3 min-w-[200px]">Đơn vị thụ hưởng</th>
-              <th className="py-2.5 px-3 w-36 text-right">Số tiền</th>
-              <th className="py-2.5 px-3 w-24 text-center">Chứng từ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {filtered.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="py-10 text-center text-slate-500 text-xs"
-                >
-                  Chiến dịch này chưa có đợt giải ngân nào.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((d) => (
-                <tr key={d.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-slate-400" />
-                      {d.disbursedAt}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <div className="font-bold text-slate-900">{d.item}</div>
-                    {d.description && (
-                      <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                        {d.description}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1">
-                      <Building2 className="w-3 h-3 text-slate-400" />
-                      {d.beneficiary}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
-                    {new Intl.NumberFormat("vi-VN").format(d.amount)} đ
-                  </td>
-                  <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
-                      <CheckCircle2 className="w-2.5 h-2.5" /> Đã chi
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 italic flex items-center gap-1.5">
-        <Receipt className="w-3.5 h-3.5 text-slate-400" />
-        Mọi chứng từ gốc, biên bản nghiệm thu và hình ảnh trao tặng được lưu tại
-        Văn phòng Trung ương Hội để phục vụ thanh tra, kiểm toán.
-      </div>
-    </section>
-  );
-}
-
-function SourceBadge({ source }: { source: "api" | "mock" }) {
-  if (source === "api") {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-xs">
-        <Database className="w-3 h-3" /> Backend
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-xs">
-      <AlertCircle className="w-3 h-3" /> Mẫu
-    </span>
-  );
-}
-</file>
-
-<file path="webcurahoi/components/finance/campaign/HonorRoll.tsx">
-"use client";
-
-import React, { useState } from "react";
-import {
-  Trophy,
-  Building2,
-  User,
-  Medal,
-  Crown,
-  Star,
-  Database,
-  AlertCircle,
-} from "lucide-react";
-import {
-  MOCK_HONOR_ROLL_YEAR,
-  MOCK_HONOR_ROLL_QUARTER,
-} from "@/lib/mock-campaigns-data";
-import { useHonorRoll } from "@/hooks/useHonorRoll";
-
-type Period = "quarter" | "year";
-
-export default function HonorRoll() {
-  const [period, setPeriod] = useState<Period>("year");
-
-  const fallback =
-    period === "year" ? MOCK_HONOR_ROLL_YEAR : MOCK_HONOR_ROLL_QUARTER;
-
-  const { entries, source } = useHonorRoll(period, fallback);
-
-  const totalAmount = entries.reduce((acc, e) => acc + e.totalAmount, 0);
-
-  return (
-    <section className="bg-gradient-to-br from-amber-50 via-white to-amber-50 border-2 border-amber-300 rounded-xs shadow-md overflow-hidden">
-      <div className="p-5 bg-gradient-to-r from-[#7a0c0c] via-[#991b1b] to-[#7a0c0c] text-white">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center shrink-0 border-2 border-amber-200 shadow-inner">
-              <Trophy className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block">
-                Bảng Vàng Danh Dự
-              </span>
-              <h2 className="text-lg sm:text-xl font-black font-serif">
-                TRI ÂN NHÀ HẢO TÂM TIÊU BIỂU
-              </h2>
-              <p className="text-[11px] text-amber-100/90 mt-0.5">
-                Vinh danh các Doanh nghiệp, Chi hội và Cá nhân có đóng góp thiện
-                nguyện tích cực nhất
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-            <div className="flex items-center gap-1 bg-black/30 rounded-xs p-1">
-              <button
-                onClick={() => setPeriod("quarter")}
-                className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
-                  period === "quarter"
-                    ? "bg-amber-400 text-amber-950"
-                    : "text-amber-100 hover:bg-white/10"
-                }`}
-              >
-                Quý này
-              </button>
-              <button
-                onClick={() => setPeriod("year")}
-                className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
-                  period === "year"
-                    ? "bg-amber-400 text-amber-950"
-                    : "text-amber-100 hover:bg-white/10"
-                }`}
-              >
-                Cả năm 2026
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 pt-3 border-t border-amber-300/30 flex justify-between items-center text-[11px]">
-          <span className="inline-flex items-center gap-2">
-            <span className="text-amber-100/90">
-              Top {entries.length} nhà hảo tâm xuất sắc nhất
-            </span>
-            {source === "api" ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-900/40 border border-emerald-400/40 px-2 py-0.5 rounded-xs">
-                <Database className="w-3 h-3" /> Backend
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-200 bg-amber-900/40 border border-amber-400/40 px-2 py-0.5 rounded-xs">
-                <AlertCircle className="w-3 h-3" /> Mẫu
-              </span>
-            )}
-          </span>
-          <span className="font-mono font-bold text-amber-200">
-            Tổng: {new Intl.NumberFormat("vi-VN").format(totalAmount)} đ
-          </span>
-        </div>
-      </div>
-
-      {entries.length === 0 ? (
-        <div className="p-10 text-center text-slate-500 text-xs">
-          Chưa có giao dịch thiện nguyện nào trong kỳ này.
-        </div>
-      ) : (
-        <>
-          <div className="px-5 pt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {entries.slice(0, 3).map((entry, idx) => {
-              const medals = [Crown, Medal, Star];
-              const medalColors = [
-                "text-amber-500",
-                "text-slate-400",
-                "text-orange-700",
-              ];
-              const bgColors = [
-                "from-amber-50 to-amber-100 border-amber-300",
-                "from-slate-50 to-slate-100 border-slate-300",
-                "from-orange-50 to-orange-100 border-orange-300",
-              ];
-              const MedalIcon = medals[idx];
-
-              return (
-                <div
-                  key={entry.name}
-                  className={`p-4 rounded-xs border-2 bg-gradient-to-br ${bgColors[idx]} flex flex-col items-center text-center space-y-2 relative`}
-                >
-                  <MedalIcon
-                    className={`w-8 h-8 ${medalColors[idx]} absolute -top-3 bg-white rounded-full p-1 border-2 border-current`}
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mt-2">
-                    Hạng {entry.rank}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {entry.payerType === "ORGANIZATION" ? (
-                      <Building2 className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                    ) : (
-                      <User className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                    )}
-                    <span className="font-bold text-xs text-slate-900 leading-snug line-clamp-2 min-h-[2.5em]">
-                      {entry.name}
-                    </span>
-                  </div>
-                  <div className="font-mono font-black text-[#991b1b] text-base">
-                    {new Intl.NumberFormat("vi-VN").format(entry.totalAmount)} đ
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="p-5">
-            <div className="overflow-x-auto border border-amber-200 rounded-xs bg-white">
-              <table className="w-full text-left text-xs font-gov min-w-[560px]">
-                <thead className="bg-amber-50 text-amber-900 font-bold border-b border-amber-200 text-[10.5px] uppercase tracking-wider">
-                  <tr>
-                    <th className="py-2.5 px-3 w-16 text-center">Hạng</th>
-                    <th className="py-2.5 px-3">Tên nhà hảo tâm</th>
-                    <th className="py-2.5 px-3 w-32 text-center">Loại</th>
-                    <th className="py-2.5 px-3 w-36 text-right">
-                      Tổng đóng góp
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-amber-100">
-                  {entries.slice(3).map((entry) => (
-                    <tr
-                      key={entry.name}
-                      className="hover:bg-amber-50/40 transition-colors"
-                    >
-                      <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500">
-                        #{entry.rank}
-                      </td>
-                      <td className="py-2.5 px-3 font-medium text-slate-800">
-                        {entry.name}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        {entry.payerType === "ORGANIZATION" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                            <Building2 className="w-3 h-3" /> Tổ chức
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <User className="w-3 h-3" /> Cá nhân
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#991b1b]">
-                        {new Intl.NumberFormat("vi-VN").format(
-                          entry.totalAmount
-                        )}{" "}
-                        đ
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-</file>
-
 <file path="webcurahoi/components/finance/payment/PaymentFormStep.tsx">
 "use client";
 
@@ -21263,6 +20575,268 @@ function TabButton({
         {count}
       </span>
     </button>
+  );
+}
+</file>
+
+<file path="webcurahoi/components/finance/FeeScheduleTab.tsx">
+"use client";
+
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  Download,
+  Search,
+  Filter,
+  AlertCircle,
+  Building2,
+  User,
+  Receipt,
+  Inbox,
+} from "lucide-react";
+import { financeApi, FeeScheduleItem } from "@/lib/api-client";
+
+function formatVnd(n: number | null): string {
+  if (n == null) return "Theo QĐ Trung ương Hội";
+  return new Intl.NumberFormat("vi-VN").format(n) + " đ";
+}
+
+function formatRange(min: number | null, max: number | null): string {
+  if (min == null && max == null) return "Đang cập nhật";
+  if (min != null && max != null && min !== max) {
+    return `${formatVnd(min)} – ${formatVnd(max)}`;
+  }
+  return formatVnd(min ?? max);
+}
+
+export default function FeeScheduleTab() {
+  const [schedules, setSchedules] = useState<FeeScheduleItem[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<
+    "ALL" | "ANNUAL_MEMBERSHIP_FEE" | "ESTABLISHMENT_FEE"
+  >("ALL");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [s, d] = await Promise.all([
+        financeApi.feeSchedules(),
+        financeApi.documents(),
+      ]);
+      if (!cancelled && s) setSchedules(s);
+      if (!cancelled && d) {
+        setDocuments(
+          d.map((x) => ({
+            id: x.id,
+            code: x.code ?? "",
+            title: x.title,
+            documentType: x.docType ?? "REGULATION",
+            issuedDate: x.issuedDate ?? "",
+            fileUrl: x.fileUrl ?? "#",
+          }))
+        );
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter((s) => {
+      const matchCat = categoryFilter === "ALL" || s.category === categoryFilter;
+      const q = searchTerm.trim().toLowerCase();
+      const matchSearch =
+        q === "" ||
+        s.name.toLowerCase().includes(q) ||
+        s.code.toLowerCase().includes(q);
+      return matchCat && matchSearch;
+    });
+  }, [schedules, categoryFilter, searchTerm]);
+
+  return (
+    <div className="space-y-12">
+      {/* 1. BIỂU MỨC PHÍ */}
+      <section className="space-y-4">
+        <div className="border-b-2 border-[#991b1b] pb-2 flex flex-col sm:flex-row justify-between sm:items-end gap-2">
+          <div>
+            <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
+              Trụ Cột 1 — Đáp ứng Mục 1 Nghiệp Vụ Mảng V
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+              BIỂU MỨC PHÍ THÀNH LẬP & HỘI PHÍ NIÊN LIỄM
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500">Nhiệm kỳ 2021 – 2026</span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white p-3 rounded-xs border border-slate-300 text-xs">
+          <div className="relative w-full sm:w-80">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm theo tên hoặc mã biểu phí..."
+              className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xs focus:outline-none focus:ring-1 focus:ring-red-600"
+            />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as any)}
+              className="border border-slate-300 rounded-xs px-3 py-2 bg-white text-slate-700 focus:outline-none"
+            >
+              <option value="ALL">Tất cả loại phí</option>
+              <option value="ANNUAL_MEMBERSHIP_FEE">Hội phí niên liễm</option>
+              <option value="ESTABLISHMENT_FEE">Phí thành lập đơn vị</option>
+            </select>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-10 text-center text-slate-400 text-sm bg-white border border-slate-300 rounded-xs">
+            Đang tải biểu mức phí...
+          </div>
+        ) : filteredSchedules.length === 0 ? (
+          <div className="p-10 text-center bg-white border border-dashed border-slate-300 rounded-xs">
+            <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="font-bold text-slate-600 text-sm">
+              Chưa có biểu mức phí nào
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Ban Tài chính & Quỹ chưa cập nhật biểu phí vào hệ thống.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-slate-300 rounded-xs bg-white">
+            <table className="w-full text-left text-xs min-w-[720px]">
+              <thead className="bg-[#f8fafc] text-slate-800 font-bold border-b border-slate-300 uppercase text-[10.5px] tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-3 w-32">Mã</th>
+                  <th className="py-2.5 px-3">Tên loại phí / hội phí</th>
+                  <th className="py-2.5 px-3 w-40">Đối tượng</th>
+                  <th className="py-2.5 px-3 w-60 text-right">Định mức</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredSchedules.map((s) => (
+                  <tr key={s.code} className="hover:bg-slate-50">
+                    <td className="py-3 px-3 font-mono font-bold text-[#991b1b] whitespace-nowrap">
+                      {s.code}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-slate-900 font-serif">
+                        {s.name}
+                      </div>
+                      {s.note && (
+                        <div className="text-[11px] text-slate-500 italic mt-0.5 leading-snug">
+                          {s.note}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      {s.targetGroup === "ORGANIZATION" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          <Building2 className="w-3 h-3" /> Tập thể
+                        </span>
+                      ) : s.targetGroup === "INDIVIDUAL" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <User className="w-3 h-3" /> Cá nhân
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                      {s.category === "ESTABLISHMENT_FEE"
+                        ? formatVnd(s.minAmount ?? s.maxAmount)
+                        : formatRange(s.minAmount, s.maxAmount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="bg-amber-50 border border-amber-300 rounded-xs p-3 text-[11px] text-amber-900 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+          <span>
+            Mức thu nêu trên được quy định tại Nghị quyết Ban Chấp hành Trung
+            ương Hội nhiệm kỳ 2021 – 2026. Chính sách miễn giảm áp dụng cho sinh
+            viên y khoa, hội viên cao tuổi và hoàn cảnh đặc biệt khó khăn.
+          </span>
+        </div>
+      </section>
+
+      {/* 2. KHO VĂN BẢN */}
+      <section className="space-y-4">
+        <div className="border-b-2 border-slate-800 pb-2">
+          <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
+            Kho Văn Bản Pháp Quy Chính Thức
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+            QUY CHẾ & NGHỊ QUYẾT VỀ QUẢN LÝ TÀI CHÍNH
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="p-8 text-center text-slate-400 text-sm">
+            Đang tải kho văn bản...
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="p-10 text-center bg-white border border-dashed border-slate-300 rounded-xs">
+            <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="font-bold text-slate-600 text-sm">
+              Chưa có văn bản nào
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Kho văn bản pháp quy sẽ hiển thị khi Trung ương Hội đăng tải.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="p-4 bg-white rounded-xs border border-slate-300 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:border-red-400 transition-colors"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xs bg-red-50 border border-red-200 text-[#991b1b] flex items-center justify-center shrink-0">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    {doc.code && (
+                      <span className="font-mono text-[11px] font-bold text-[#991b1b] block">
+                        Số: {doc.code}
+                      </span>
+                    )}
+                    <h4 className="font-bold text-sm text-slate-900 font-serif leading-snug">
+                      {doc.title}
+                    </h4>
+                    {doc.issuedDate && (
+                      <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                        Ngày ban hành: {doc.issuedDate}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={doc.fileUrl || "#"}
+                  className="shrink-0 self-start sm:self-auto px-3 py-1.5 bg-[#991b1b] hover:bg-red-800 text-white rounded-xs font-bold text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> Tải PDF
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 </file>
@@ -22289,6 +21863,169 @@ export default function PublicHeader() {
 }
 </file>
 
+<file path="webcurahoi/hooks/useCampaigns.ts">
+"use client";
+
+import { useEffect, useState } from "react";
+import { financeApi } from "@/lib/api-client";
+import { mapCampaign } from "@/lib/api-mappers";
+import { Campaign } from "@/lib/mock-campaigns-data";
+
+interface Result {
+  campaigns: Campaign[];
+  loading: boolean;
+  source: "api" | "empty";
+}
+
+/**
+ * Chỉ lấy data từ backend. Không dùng fallback mock.
+ * DB trống → campaigns = [] → component hiển thị empty state.
+ */
+export function useCampaigns(): Result {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<"api" | "empty">("empty");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const data = await financeApi.campaigns();
+      if (cancelled) return;
+      if (Array.isArray(data) && data.length > 0) {
+        setCampaigns(data.map(mapCampaign));
+        setSource("api");
+      } else {
+        setCampaigns([]);
+        setSource("empty");
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { campaigns, loading, source };
+}
+</file>
+
+<file path="webcurahoi/hooks/useDisbursements.ts">
+"use client";
+
+import { useEffect, useState } from "react";
+import { mapDisbursement } from "@/lib/api-mappers";
+import { Disbursement } from "@/lib/mock-campaigns-data";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+
+async function fetchJson(path: string) {
+  try {
+    const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+interface Result {
+  disbursements: Disbursement[];
+  loading: boolean;
+  source: "api" | "empty";
+}
+
+/**
+ * Chỉ lấy data từ backend. Không fallback mock.
+ * @param campaignSlugs Danh sách slug chiến dịch cần fetch
+ */
+export function useDisbursements(campaignSlugs: string[]): Result {
+  const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<"api" | "empty">("empty");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const all: Disbursement[] = [];
+      for (const slug of campaignSlugs) {
+        const data = await fetchJson(
+          `/finance/campaigns/${slug}/disbursements`
+        );
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach((d: any) => all.push(mapDisbursement(d, slug)));
+        }
+      }
+      if (cancelled) return;
+      if (all.length > 0) {
+        all.sort((a, b) =>
+          (b.disbursedAt || "").localeCompare(a.disbursedAt || "")
+        );
+        setDisbursements(all);
+        setSource("api");
+      } else {
+        setDisbursements([]);
+        setSource("empty");
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignSlugs.join(",")]);
+
+  return { disbursements, loading, source };
+}
+</file>
+
+<file path="webcurahoi/hooks/useHonorRoll.ts">
+"use client";
+
+import { useEffect, useState } from "react";
+import { financeApi } from "@/lib/api-client";
+import { mapHonorRoll } from "@/lib/api-mappers";
+import { HonorRollEntry } from "@/lib/mock-campaigns-data";
+
+type Period = "quarter" | "year";
+
+interface Result {
+  entries: HonorRollEntry[];
+  loading: boolean;
+  source: "api" | "empty";
+}
+
+/**
+ * Chỉ lấy data từ backend. Không fallback mock.
+ */
+export function useHonorRoll(period: Period): Result {
+  const [entries, setEntries] = useState<HonorRollEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<"api" | "empty">("empty");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const data = await financeApi.honorRoll(period);
+      if (cancelled) return;
+      if (Array.isArray(data) && data.length > 0) {
+        setEntries(data.map(mapHonorRoll));
+        setSource("api");
+      } else {
+        setEntries([]);
+        setSource("empty");
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
+
+  return { entries, loading, source };
+}
+</file>
+
 <file path="webcurahoi/tsconfig.json">
 {
   "compilerOptions": {
@@ -22457,6 +22194,541 @@ export default function CharityAndFeesPage() {
     <PaymentPrefillProvider>
       <CharityAndFeesContent />
     </PaymentPrefillProvider>
+  );
+}
+</file>
+
+<file path="webcurahoi/components/finance/campaign/CampaignCards.tsx">
+"use client";
+
+import React from "react";
+import {
+  Target,
+  TrendingUp,
+  Users,
+  ArrowRight,
+  HeartHandshake,
+  Inbox,
+} from "lucide-react";
+import { Campaign } from "@/lib/mock-campaigns-data";
+import { useCampaigns } from "@/hooks/useCampaigns";
+
+export default function CampaignCards() {
+  const { campaigns, loading } = useCampaigns();
+
+  return (
+    <section className="space-y-4">
+      <div className="border-b-2 border-[#991b1b] pb-2 flex flex-col sm:flex-row justify-between sm:items-end gap-2">
+        <div>
+          <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
+            Trụ Cột 3 — Chiến Dịch Thiện Nguyện Y Tế Trọng Điểm
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+            CÁC QUỸ ĐANG VẬN ĐỘNG & TIẾN ĐỘ QUYÊN GÓP
+          </h2>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="p-10 text-center text-slate-400 text-sm bg-white border border-slate-300 rounded-xs">
+          Đang tải danh sách chiến dịch...
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="p-10 text-center bg-white border border-dashed border-slate-300 rounded-xs">
+          <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <p className="font-bold text-slate-600 text-sm">
+            Chưa có chiến dịch thiện nguyện nào
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Ban Tài chính & Quỹ chưa tạo chiến dịch trong hệ thống.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {campaigns.map((c) => (
+            <CampaignCard key={c.slug} campaign={c} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CampaignCard({ campaign }: { campaign: Campaign }) {
+  const {
+    name,
+    description,
+    targetAmount,
+    raisedAmount,
+    donationCount,
+    disbursedAmount,
+    progressPercent,
+    status,
+  } = campaign;
+
+  const isActive = status === "ACTIVE";
+
+  return (
+    <article className="bg-white border border-slate-300 rounded-xs shadow-2xs hover:border-[#991b1b] hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
+      <div className="p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-xs border ${
+              isActive
+                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                : "bg-slate-100 text-slate-700 border-slate-300"
+            }`}
+          >
+            {isActive ? "Đang vận động" : "Đã kết thúc"}
+          </span>
+          <span className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
+            <Users className="w-3 h-3" /> {donationCount} lượt
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-start gap-2">
+            <HeartHandshake className="w-4 h-4 text-[#991b1b] shrink-0 mt-0.5" />
+            <h3 className="font-bold text-sm text-slate-900 font-serif leading-snug">
+              {name}
+            </h3>
+          </div>
+          <p className="text-[11px] text-slate-600 leading-snug line-clamp-3">
+            {description}
+          </p>
+        </div>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-xs p-3 space-y-2">
+          <div className="flex justify-between text-[11px] font-mono">
+            <span className="text-slate-500 flex items-center gap-1">
+              <Target className="w-3 h-3" /> Mục tiêu:
+            </span>
+            <strong className="text-slate-800">
+              {new Intl.NumberFormat("vi-VN").format(targetAmount)} đ
+            </strong>
+          </div>
+
+          <div className="flex justify-between text-[11px] font-mono">
+            <span className="text-slate-500 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-[#991b1b]" /> Đã vận động:
+            </span>
+            <strong className="text-[#991b1b]">
+              {new Intl.NumberFormat("vi-VN").format(raisedAmount)} đ
+            </strong>
+          </div>
+
+          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-amber-500 to-[#991b1b] h-full transition-all"
+              style={{ width: `${Math.min(progressPercent, 100)}%` }}
+            />
+          </div>
+
+          <div className="flex justify-between text-[10px] text-slate-500">
+            <span>Tiến độ đạt {progressPercent}%</span>
+            <span className="font-mono">
+              Đã chi: {new Intl.NumberFormat("vi-VN").format(disbursedAmount)} đ
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-3 border-t border-slate-100 flex justify-between items-center text-xs">
+        <a
+          href="#cong-chuyen-khoan"
+          className="text-[#991b1b] font-bold hover:underline flex items-center gap-1"
+        >
+          Ủng hộ chiến dịch <ArrowRight className="w-3.5 h-3.5" />
+        </a>
+        <span className="text-[10px] text-slate-400 font-mono uppercase">
+          VACHE
+        </span>
+      </div>
+    </article>
+  );
+}
+</file>
+
+<file path="webcurahoi/components/finance/campaign/DisbursementsSection.tsx">
+"use client";
+
+import React, { useMemo, useState } from "react";
+import {
+  Receipt,
+  Wallet,
+  Building2,
+  Calendar,
+  Filter,
+  CheckCircle2,
+  Inbox,
+} from "lucide-react";
+import { useDisbursements } from "@/hooks/useDisbursements";
+import { useCampaigns } from "@/hooks/useCampaigns";
+
+export default function DisbursementsSection() {
+  const { campaigns } = useCampaigns();
+  const campaignSlugs = useMemo(
+    () => campaigns.map((c) => c.slug),
+    [campaigns]
+  );
+
+  const { disbursements, loading } = useDisbursements(campaignSlugs);
+  const [campaignFilter, setCampaignFilter] = useState<string>("ALL");
+
+  const filtered = useMemo(() => {
+    if (campaignFilter === "ALL") return disbursements;
+    return disbursements.filter((d) => d.campaignSlug === campaignFilter);
+  }, [disbursements, campaignFilter]);
+
+  const totalDisbursed = useMemo(
+    () => filtered.reduce((acc, d) => acc + d.amount, 0),
+    [filtered]
+  );
+
+  return (
+    <section className="bg-white border border-slate-300 rounded-xs shadow-2xs overflow-hidden">
+      <div className="p-5 border-b border-slate-200 bg-slate-50">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xs bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-[#991b1b] uppercase tracking-wider block">
+                Minh Bạch Hai Chiều — Báo Cáo Chi Tiền
+              </span>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-serif">
+                BÁO CÁO GIẢI NGÂN THỰC TẾ
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Công khai mọi khoản chi tiền cứu trợ y tế tới đúng đối tượng thụ
+                hưởng
+              </p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[11px] text-slate-500 block">
+              Tổng đã chi:
+            </span>
+            <span className="font-mono font-black text-emerald-700 text-lg">
+              {new Intl.NumberFormat("vi-VN").format(totalDisbursed)} đ
+            </span>
+          </div>
+        </div>
+
+        {campaigns.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-200">
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-700">
+              Lọc theo chiến dịch:
+            </span>
+            <button
+              onClick={() => setCampaignFilter("ALL")}
+              className={`px-2.5 py-1 rounded-xs text-[11px] font-bold border transition-colors cursor-pointer ${
+                campaignFilter === "ALL"
+                  ? "bg-emerald-700 text-white border-emerald-700"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              Tất cả ({disbursements.length})
+            </button>
+            {campaigns.map((c) => {
+              const count = disbursements.filter(
+                (d) => d.campaignSlug === c.slug
+              ).length;
+              return (
+                <button
+                  key={c.slug}
+                  onClick={() => setCampaignFilter(c.slug)}
+                  className={`px-2.5 py-1 rounded-xs text-[11px] font-bold border transition-colors cursor-pointer truncate max-w-[220px] ${
+                    campaignFilter === c.slug
+                      ? "bg-emerald-700 text-white border-emerald-700"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                  }`}
+                  title={c.name}
+                >
+                  {c.name.split("—")[0].trim()} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="p-10 text-center text-slate-400 text-sm">
+          Đang tải báo cáo giải ngân...
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs font-gov min-w-[720px]">
+            <thead className="bg-[#f8fafc] text-slate-800 font-bold border-b border-slate-300 uppercase text-[10.5px] tracking-wider">
+              <tr>
+                <th className="py-2.5 px-3 w-32 text-center">Ngày chi</th>
+                <th className="py-2.5 px-3 min-w-[220px]">Hạng mục chi</th>
+                <th className="py-2.5 px-3 min-w-[200px]">Đơn vị thụ hưởng</th>
+                <th className="py-2.5 px-3 w-36 text-right">Số tiền</th>
+                <th className="py-2.5 px-3 w-24 text-center">Chứng từ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center">
+                    <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <p className="font-bold text-slate-600 text-sm">
+                      Chưa có đợt giải ngân nào
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Báo cáo chi tiền sẽ xuất hiện khi Trung ương Hội thực hiện
+                      giải ngân.
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((d) => (
+                  <tr
+                    key={d.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        {d.disbursedAt}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="font-bold text-slate-900">{d.item}</div>
+                      {d.description && (
+                        <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                          {d.description}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <Building2 className="w-3 h-3 text-slate-400" />
+                        {d.beneficiary}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
+                      {new Intl.NumberFormat("vi-VN").format(d.amount)} đ
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                        <CheckCircle2 className="w-2.5 h-2.5" /> Đã chi
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 italic flex items-center gap-1.5">
+        <Receipt className="w-3.5 h-3.5 text-slate-400" />
+        Mọi chứng từ gốc, biên bản nghiệm thu và hình ảnh trao tặng được lưu tại
+        Văn phòng Trung ương Hội để phục vụ thanh tra, kiểm toán.
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="webcurahoi/components/finance/campaign/HonorRoll.tsx">
+"use client";
+
+import React, { useState } from "react";
+import {
+  Trophy,
+  Building2,
+  User,
+  Medal,
+  Crown,
+  Star,
+  Inbox,
+} from "lucide-react";
+import { useHonorRoll } from "@/hooks/useHonorRoll";
+
+type Period = "quarter" | "year";
+
+export default function HonorRoll() {
+  const [period, setPeriod] = useState<Period>("year");
+
+  const { entries, loading } = useHonorRoll(period);
+
+  const totalAmount = entries.reduce((acc, e) => acc + e.totalAmount, 0);
+
+  return (
+    <section className="bg-gradient-to-br from-amber-50 via-white to-amber-50 border-2 border-amber-300 rounded-xs shadow-md overflow-hidden">
+      <div className="p-5 bg-gradient-to-r from-[#7a0c0c] via-[#991b1b] to-[#7a0c0c] text-white">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center shrink-0 border-2 border-amber-200 shadow-inner">
+              <Trophy className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block">
+                Bảng Vàng Danh Dự
+              </span>
+              <h2 className="text-lg sm:text-xl font-black font-serif">
+                TRI ÂN NHÀ HẢO TÂM TIÊU BIỂU
+              </h2>
+              <p className="text-[11px] text-amber-100/90 mt-0.5">
+                Vinh danh các Doanh nghiệp, Chi hội và Cá nhân có đóng góp thiện
+                nguyện tích cực nhất
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 bg-black/30 rounded-xs p-1 shrink-0 self-start sm:self-auto">
+            <button
+              onClick={() => setPeriod("quarter")}
+              className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
+                period === "quarter"
+                  ? "bg-amber-400 text-amber-950"
+                  : "text-amber-100 hover:bg-white/10"
+              }`}
+            >
+              Quý này
+            </button>
+            <button
+              onClick={() => setPeriod("year")}
+              className={`px-3 py-1.5 rounded-xs text-[11px] font-bold transition-colors cursor-pointer ${
+                period === "year"
+                  ? "bg-amber-400 text-amber-950"
+                  : "text-amber-100 hover:bg-white/10"
+              }`}
+            >
+              Cả năm 2026
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-amber-300/30 flex justify-between items-center text-[11px]">
+          <span className="text-amber-100/90">
+            Top {entries.length} nhà hảo tâm xuất sắc nhất
+          </span>
+          <span className="font-mono font-bold text-amber-200">
+            Tổng: {new Intl.NumberFormat("vi-VN").format(totalAmount)} đ
+          </span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="p-10 text-center text-slate-500 text-sm">
+          Đang tải bảng vàng...
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="p-10 text-center">
+          <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <p className="font-bold text-slate-600 text-sm">
+            Chưa có giao dịch thiện nguyện nào trong kỳ này
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Bảng vàng sẽ cập nhật khi có nhà hảo tâm đóng góp.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="px-5 pt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {entries.slice(0, 3).map((entry, idx) => {
+              const medals = [Crown, Medal, Star];
+              const medalColors = [
+                "text-amber-500",
+                "text-slate-400",
+                "text-orange-700",
+              ];
+              const bgColors = [
+                "from-amber-50 to-amber-100 border-amber-300",
+                "from-slate-50 to-slate-100 border-slate-300",
+                "from-orange-50 to-orange-100 border-orange-300",
+              ];
+              const MedalIcon = medals[idx];
+
+              return (
+                <div
+                  key={entry.name}
+                  className={`p-4 rounded-xs border-2 bg-gradient-to-br ${bgColors[idx]} flex flex-col items-center text-center space-y-2 relative`}
+                >
+                  <MedalIcon
+                    className={`w-8 h-8 ${medalColors[idx]} absolute -top-3 bg-white rounded-full p-1 border-2 border-current`}
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mt-2">
+                    Hạng {entry.rank}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {entry.payerType === "ORGANIZATION" ? (
+                      <Building2 className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                    ) : (
+                      <User className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                    )}
+                    <span className="font-bold text-xs text-slate-900 leading-snug line-clamp-2 min-h-[2.5em]">
+                      {entry.name}
+                    </span>
+                  </div>
+                  <div className="font-mono font-black text-[#991b1b] text-base">
+                    {new Intl.NumberFormat("vi-VN").format(entry.totalAmount)} đ
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-5">
+            <div className="overflow-x-auto border border-amber-200 rounded-xs bg-white">
+              <table className="w-full text-left text-xs font-gov min-w-[560px]">
+                <thead className="bg-amber-50 text-amber-900 font-bold border-b border-amber-200 text-[10.5px] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-3 w-16 text-center">Hạng</th>
+                    <th className="py-2.5 px-3">Tên nhà hảo tâm</th>
+                    <th className="py-2.5 px-3 w-32 text-center">Loại</th>
+                    <th className="py-2.5 px-3 w-36 text-right">
+                      Tổng đóng góp
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100">
+                  {entries.slice(3).map((entry) => (
+                    <tr
+                      key={entry.name}
+                      className="hover:bg-amber-50/40 transition-colors"
+                    >
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500">
+                        #{entry.rank}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-800">
+                        {entry.name}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {entry.payerType === "ORGANIZATION" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                            <Building2 className="w-3 h-3" /> Tổ chức
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <User className="w-3 h-3" /> Cá nhân
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#991b1b]">
+                        {new Intl.NumberFormat("vi-VN").format(
+                          entry.totalAmount
+                        )}{" "}
+                        đ
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 </file>

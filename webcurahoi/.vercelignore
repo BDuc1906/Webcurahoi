@@ -4,15 +4,19 @@
 
 # Backend NestJS (deploy riêng trên Railway)
 backend/
+backend/**
 
 # Scripts tiện ích (không cần cho frontend)
 scratch/
+scratch/**
 scripts/
+scripts/**
 
 # File không cần thiết khi build
 repomix-output.xml
 check-diacritics.mjs
 normalize-nfc.mjs
+noi dung web.txt
 
 # Biến môi trường (BẢO MẬT — không bao giờ upload)
 .env
@@ -21,6 +25,9 @@ normalize-nfc.mjs
 
 # Cache và dependencies
 .next/
+out/
+build/
+dist/
 node_modules/
 *.log
 
